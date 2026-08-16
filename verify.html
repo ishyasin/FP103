@@ -121,18 +121,7 @@ async function init() {
     return;
   }
 
-  renderStart();
-}
-
-function renderStart() {
-  document.getElementById('mainContent').innerHTML = `
-    <h1>Final Check</h1>
-    <p class="subtitle">Review generated FP10SS/FP10HNC sessions and verify or reject them.</p>
-    <div class="start-card">
-      <p>Starting a final check will load every session for ${ME.isSuperuser ? 'the selected trust' : 'your trust'} — pending, verified, rejected, and voided — so you can review and act on anything outstanding.</p>
-      <button class="btn-primary" id="startBtn">Start Final Check</button>
-    </div>`;
-  document.getElementById('startBtn').addEventListener('click', startCheck);
+  startCheck();
 }
 
 let TICK_INTERVAL = null;
@@ -200,9 +189,10 @@ function sessionCardHtml(s) {
   const registers = s.register_log || [];
   const appLabel = s.app === 'ss' ? 'FP10SS' : 'FP10HNC';
   const isLockedToOther = s.assigned_verifier && s.assigned_verifier !== ME.id && !ME.isSuperuser;
+  const isFullyChecked = registers.length > 0 && registers.every(r => r.voided || r.verified);
   const lockNote = s.assigned_verifier
     ? `<div style="font-size:0.78em;color:${isLockedToOther ? '#a01c2e' : '#1a7a3c'};margin-top:2px;">
-        ${isLockedToOther ? `🔒 Being checked by ${escapeHtml(s.assigned_verifier_name || 'another Technician')}` : '🔒 You are checking this session'}
+        ${isLockedToOther ? `🔒 Being checked by ${escapeHtml(s.assigned_verifier_name || 'another Technician')}` : (isFullyChecked ? '✓ You have checked this session' : '🔒 You are checking this session')}
        </div>`
     : '';
 
