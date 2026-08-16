@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FP10SS Manager - GD&amp;G Special Projects</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy: #1b3a6b;
+    --navy-dark: #122d56;
+    --magenta: #e8176e;
+    --magenta-dark: #c4115c;
+    --cyan: #2a52a0;
+    --cyan-dark: #1557a0;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f7f8fa;
+    --border: #d0d5dd;
+    --text: #1a1f36;
+    --text-muted: #5a6278;
+    --text-hint: #9aa0b4;
+    --green: #00843d;
+    --green-pale: #d4edda;
+    --green-pale-text: #155724;
+    --red: #c0003c;
+    --red-pale: #f8d7da;
+    --red-pale-text: #721c24;
+    --blue-pale: #dce8f7;
+    --blue-pale-text: #1b3a6b;
+    --gray: #5a6278;
+    --gray-dark: #444b60;
+    --shadow: 0 2px 6px rgba(27,58,107,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111827;
+      --surface: #1e2433;
+      --surface2: #262e40;
+      --border: #374160;
+      --text: #e8eaf2;
+      --text-muted: #9aa0b4;
+      --text-hint: #606880;
+      --blue-pale: #0a1a3a;
+      --blue-pale-text: #90b8f8;
+      --green-pale: #0a2218;
+      --green-pale-text: #6fcf8a;
+      --red-pale: #3a0a14;
+      --red-pale-text: #f28a9a;
+      --shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Fira Sans', Arial, sans-serif; margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+
+  /* ── Top nav (matches FP10 Manager) ── */
+  .top-nav { background: var(--navy); box-shadow: 0 2px 8px rgba(0,0,0,0.25); position: sticky; top: 0; z-index: 100; animation: slideDown 0.5s ease both; }
+  .top-nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 16px; }
+  .top-nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; flex-shrink: 0; }
+  .top-nav-logo svg { height: 36px; width: auto; display: block; }
+  .top-nav-actions { display: flex; gap: 10px; }
+  .btn-about { background: transparent; border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.75); border-radius: 4px; padding: 8px 16px; font-size: 0.78em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; transition: all 0.2s ease; }
+  .btn-about:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.6); transform: translateY(-1px); }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1100; display: none; justify-content: center; align-items: center; animation: fadeIn 0.15s ease; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 12px; max-width: 520px; width: 92%; max-height: 88vh; overflow-y: auto; padding: 32px 30px 26px; position: relative; box-shadow: 0 8px 32px rgba(27,58,107,0.18); animation: modalIn 0.22s ease both; }
+  .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 1.4em; color: var(--text-muted); cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 4px; }
+  .modal-close:hover { background: var(--surface2); color: var(--text); }
+  .modal h2 { margin: 0 0 16px; color: var(--navy); font-size: 1.35em; padding-bottom: 12px; border-bottom: 3px solid var(--magenta); }
+  .modal p, .modal li { color: var(--text-muted); font-size: 0.93em; line-height: 1.7; }
+  .modal .contact { margin-top: 18px; padding: 12px 14px; background: var(--surface2); border-left: 3px solid var(--cyan); border-radius: 0 6px 6px 0; font-size: 0.88em; color: var(--text-muted); }
+  .modal .contact a { color: var(--magenta); text-decoration: none; font-weight: 500; }
+  .modal .contact a:hover { text-decoration: underline; }
+
+  /* ── About modal (matches FP10 Manager's "About this tool" design) ── */
+  .about-tag { font-size: 0.72em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-hint); margin-bottom: 10px; }
+  .about-modal h2 { margin: 0 0 16px; color: var(--navy); font-size: 1.55em; padding-bottom: 0; border-bottom: none; }
+  .pill { display: inline-block; font-weight: 700; font-size: 0.95em; padding: 2px 10px; border-radius: 20px; margin-right: 2px; }
+  .pill-hnc { background: #d7f5ec; color: #0f8a6c; }
+  .pill-ss { background: #fbe0ec; color: var(--magenta); }
+  .notice-bar { margin: 18px 0 4px; padding: 12px 14px; background: #fbe4ea; border-left: 4px solid var(--magenta); border-radius: 0 6px 6px 0; font-size: 0.88em; color: var(--text); }
+  .about-section-label { font-size: 0.75em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin: 22px 0 8px; }
+  .about-version { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.8em; color: var(--text-hint); }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+  @keyframes pulseValid { 0% { box-shadow: 0 0 0 0 rgba(0,132,61,0.4); } 70% { box-shadow: 0 0 0 6px rgba(0,132,61,0); } 100% { box-shadow: 0 0 0 0 rgba(0,132,61,0); } }
+
+  /* ── Main card ── */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 50px; }
+  .layout { display: flex; align-items: stretch; gap: 22px; }
+  .layout .form-col { flex: 1.35 1 480px; min-width: 0; display: flex; }
+  .layout .form-col .card { flex: 1; display: flex; flex-direction: column; }
+  .layout .form-col .card .footer-note { margin-top: auto; padding-top: 20px; }
+  .layout .side-col { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 20px; position: sticky; top: 84px; }
+  @media (max-width: 880px) {
+    .layout { flex-direction: column; align-items: stretch; }
+    .layout .side-col { position: static; width: 100%; }
+  }
+  .card { background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); padding: 24px 24px; margin-bottom: 0; opacity: 0; animation: fadeUp 0.5s ease both; }
+  .layout .form-col .card { animation-delay: 0.1s; }
+  .layout .side-col .card:nth-child(1) { animation-delay: 0.2s; }
+  .layout .side-col .card:nth-child(2) { animation-delay: 0.3s; }
+  .card h1 { margin: 0 0 6px; color: var(--navy); font-size: 1.3em; }
+  .card .subtitle { color: var(--text-muted); font-size: 0.9em; margin: 0 0 16px; line-height: 1.55; }
+
+  .section-label { font-weight: 600; color: var(--text); font-size: 0.9em; margin: 14px 0 8px; display: flex; align-items: center; gap: 8px; }
+  .section-label .badge { background: var(--blue-pale); color: var(--blue-pale-text); font-size: 0.75em; font-weight: 700; padding: 2px 9px; border-radius: 10px; }
+
+  /* ── Section heading style: eyebrow + bold title with accent word + thin rule ── */
+  .section-heading { margin: 0 0 16px; }
+  .section-heading .eyebrow { font-size: 0.72em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--magenta); margin: 0 0 6px; }
+  .section-heading h1, .section-heading h2, .section-heading h3 { margin: 0 0 10px; font-weight: 800; letter-spacing: -0.01em; color: var(--navy); }
+  .section-heading .accent { color: var(--magenta); }
+  .section-heading .heading-rule { width: 34px; height: 3px; background: var(--magenta); border-radius: 2px; margin: 0 0 12px; }
+  .section-heading--sm h1, .section-heading--sm h2, .section-heading--sm h3 { margin-bottom: 6px; }
+  .section-heading--sm .heading-rule { width: 24px; height: 2px; margin-bottom: 10px; }
+
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; min-width: 0; }
+
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.87em; color: var(--text-muted); }
+  .form-group input { width: 100%; padding: 10px; font-size: 1em; font-family: 'Courier New', monospace; letter-spacing: 0.03em; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text); transition: all 0.2s ease; }
+  .form-group input:focus { outline: none; border-color: var(--magenta); box-shadow: 0 0 0 2px rgba(232,23,110,0.12); }
+  .form-group input::placeholder { color: var(--text-hint); font-family: 'Fira Sans', Arial, sans-serif; letter-spacing: normal; }
+  .form-group input.valid { background-color: rgb(167, 252, 169); border-color: var(--green); color: #1a4a1a; animation: pulseValid 0.4s ease; }
+  .form-group input.invalid { background-color: rgb(242, 170, 170); border-color: var(--red); color: #4a1a1a; }
+
+  .divider { border: none; border-top: 1px dashed var(--border); margin: 16px 0; }
+
+  button { padding: 12px 20px; font-size: 1em; border-radius: 5px; border: none; cursor: pointer; transition: all 0.2s ease; font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--magenta); color: white; width: 100%; }
+  .btn-primary:hover:not(:disabled) { background: var(--magenta-dark); transform: translateY(-1px); }
+  .btn-secondary { background: var(--gray); color: white; }
+  .btn-secondary:hover:not(:disabled) { background: var(--gray-dark); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-danger:hover:not(:disabled) { background: #99002f; }
+
+  .alert { padding: 12px 15px; border-radius: 5px; margin-bottom: 15px; display: none; font-size: 0.92em; line-height: 1.5; }
+  .alert.show { display: block; }
+  .alert-error { background: var(--red-pale); color: var(--red-pale-text); border: 1px solid #f5c6cb; }
+
+  /* ── Result panel ── */
+  .result { display: none; text-align: center; padding: 22px 18px; border-radius: 10px; background: var(--green-pale); border: 1px solid #b8dfc0; }
+  .result.show { display: block; animation: fadeUp 0.3s ease; }
+  .result .count { font-size: 2.6em; font-weight: 800; color: var(--green-pale-text); line-height: 1; }
+  .result .count-label { font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--green-pale-text); opacity: 0.85; margin-top: 6px; }
+  .result .detail { margin-top: 16px; font-size: 0.85em; color: var(--text-muted); font-family: 'Courier New', monospace; line-height: 1.8; text-align: left; background: var(--surface); border-radius: 6px; padding: 12px 14px; }
+  .result .detail span.k { color: var(--text-hint); font-family: 'Fira Sans', Arial, sans-serif; }
+
+  .footer-note { font-size: 0.85em; text-align: center; color: var(--text-muted); margin-top: 4px; line-height: 1.5em; }
+  .footer-note a { color: var(--magenta); text-decoration: none; }
+  .footer-note a:hover { text-decoration: underline; }
+
+  /* ── Spinner ── */
+  .spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--magenta); border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-left: 8px; }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  /* ── Log list ── */
+  .log-item { padding: 12px 15px; border: 1px solid var(--border); border-left: 4px solid var(--cyan); border-radius: 5px; margin-bottom: 10px; background: var(--surface2); animation: fadeUp 0.35s ease both; }
+  .log-item-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .log-item-info strong { color: var(--navy); }
+  .log-item-serial { font-family: monospace; font-size: 0.85em; color: var(--text-muted); margin-top: 3px; }
+  .empty-state { text-align: center; padding: 24px; color: var(--text-hint); font-size: 0.9em; }
+
+  /* ── Inline confirm banner ── */
+  .confirm-banner { background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 5px; padding: 10px 14px; margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 0.9em; flex-wrap: wrap; justify-content: center; }
+  @media (prefers-color-scheme: dark) { .confirm-banner { background: #2e2200; color: #f5c842; border-color: #7a5c00; } }
+  .confirm-banner .confirm-actions { display: flex; gap: 8px; }
+  .confirm-banner button { padding: 4px 12px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+
+<nav class="top-nav" role="banner">
+  <div class="top-nav-inner">
+    <a class="top-nav-logo" href="#" aria-label="GD&amp;G Special Projects home">
+      <div style="width:3px;height:30px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+      <div style="display:flex;flex-direction:column;justify-content:center;line-height:1.2;">
+        <span style="font-size:0.7em;font-weight:400;color:rgba(255,255,255,0.65);letter-spacing:0.08em;text-transform:uppercase;">FP10SS Manager by</span>
+        <span style="font-size:1em;font-weight:700;color:#ffffff;letter-spacing:0.01em;">GD&amp;G <span style="font-weight:400;color:rgba(255,255,255,0.7);">Special Projects</span><sup style="font-size:0.55em;color:rgba(255,255,255,0.5);vertical-align:super;">™</sup></span>
+      </div>
+    </a>
+    <div class="top-nav-actions">
+      <button class="btn-about" onclick="window.location.href='index.html'">Back to app</button>
+      <button class="btn-about" onclick="openHowTo()">How to Use</button>
+      <button class="btn-about" onclick="openAbout()">About</button>
+      <button class="btn-about" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="layout">
+    <div class="form-col">
+      <div class="card" id="siteCard" style="display:none;"></div>
+      <div class="card">
+        <div class="section-heading">
+          <h1>FP10SS <span class="accent">Manager</span></h1>
+          <div class="heading-rule"></div>
+        </div>
+        <p class="subtitle">Work out how many FP10 sheets are in an unknown-quantity stack without counting them by hand. Enter the first three serial numbers from the top of the stack and the serial number from the bottom sheet. The system will then count the number of sheets per stack.</p>
+
+        <div id="alertContainer"></div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Processed by</label>
+            <input type="text" id="generatedBy" readonly disabled value="—" style="font-family:'Fira Sans', Arial, sans-serif; letter-spacing:normal; background:var(--bg-alt); color:var(--text-muted); cursor:not-allowed;" />
+          </div>
+          <div class="form-group">
+            <label for="deptCode">Department / FP10 code <span style="font-weight:400;color:var(--red);">(required)</span></label>
+            <input type="text" id="deptCode" placeholder="e.g. RYR123" autocomplete="off" style="font-family:'Fira Sans', Arial, sans-serif; letter-spacing:normal;" />
+          </div>
+        </div>
+
+        <div class="section-heading section-heading--sm">
+          <div class="eyebrow">Top of stack</div>
+          <h3>First three <span class="accent">serial numbers</span></h3>
+          <div class="heading-rule"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <input type="text" id="serial1" placeholder="First serial (11 digits)" inputmode="numeric" maxlength="11" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <input type="text" id="serial2" placeholder="Second serial (11 digits)" inputmode="numeric" maxlength="11" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <input type="text" id="serial3" placeholder="Third serial (11 digits)" inputmode="numeric" maxlength="11" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="section-heading section-heading--sm">
+          <div class="eyebrow">Bottom of stack</div>
+          <h3>Last <span class="accent">serial number</span></h3>
+          <div class="heading-rule"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <input type="text" id="serialLast" placeholder="Last serial (11 digits)" inputmode="numeric" maxlength="11" autocomplete="off" />
+          </div>
+        </div>
+
+        <button class="btn-primary" id="countBtn" disabled>Count Sheets &amp; Generate Log</button>
+
+        <p class="footer-note">
+          Developed for University Hospitals Sussex NHS Foundation Trust.<br>
+          For any questions please email <a href="mailto:ismael.yasin@nhs.net">ismael.yasin@nhs.net</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="side-col">
+      <div class="card">
+        <div class="section-heading section-heading--sm">
+          <h1 style="font-size:1.15em;">Your <span class="accent">Result</span></h1>
+          <div class="heading-rule"></div>
+        </div>
+        <div class="empty-state" id="resultEmpty">Enter all four serial numbers and the department code, then click <strong>Count Sheets &amp; Generate Log</strong> to see the total here.</div>
+        <div class="result" id="result">
+          <div class="count" id="resultCount">0</div>
+          <div class="count-label">sheets in this stack</div>
+          <div class="detail" id="resultDetail"></div>
+        </div>
+      </div>
+
+      <div class="card" id="logCard" style="display:none;">
+        <div class="section-heading section-heading--sm">
+          <h1 style="font-size:1.15em;">Pharmacy <span class="accent">Log</span></h1>
+          <div class="heading-rule"></div>
+        </div>
+        <p class="subtitle" style="margin-bottom:14px;">This session's stack count. The downloaded PDF includes a Pharmacy Copy and a Ward Copy.</p>
+        <div id="logList"></div>
+        <div style="display:flex; gap:10px; margin-top:16px;" id="logActions">
+          <button class="btn-primary" id="submitLogBtn" style="flex:1;">Submit</button>
+        </div>
+      </div>
+
+      <div class="card" id="rejectedCard" style="display:none;background:#fdecef;border-color:#eeb4bb;">
+        <div style="color:#a01c2e;font-weight:700;margin-bottom:4px;">⚠ You have entries sent back for correction</div>
+        <p style="color:var(--text-muted);font-size:0.9em;margin-bottom:12px;">A Pharmacy Technician found something to fix on <span id="rejectedCount">one or more</span> of your entries.</p>
+        <a href="corrections.html" class="btn-primary" style="display:inline-block;text-decoration:none;">Go to Corrections</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- About modal -->
+<div id="aboutModal" class="modal-overlay">
+  <div class="modal about-modal">
+    <button class="modal-close" onclick="closeAbout()">&times;</button>
+    <div class="about-tag">About this tool</div>
+    <h2>FP10 <span style="color:var(--magenta);">Manager</span></h2>
+    <p>Developed by <strong style="color:var(--text);">GD&amp;G <span style="font-weight:400;">Special Projects™</span></strong> for <strong style="color:var(--text);">University Hospitals Sussex NHS Foundation Trust</strong>, <strong style="color:var(--text);">FP10 Manager™</strong> covers the two distinct types of FP10 controlled stationery in circulation across the Trust.</p>
+    <p><span class="pill pill-hnc">FP10HNC Manager</span> is for the handwritten pads — FP10HNC forms, typically issued in pads of 50, filled in by hand at the point of prescribing. As pads are booked out to a department, it generates the pharmacy register, cover sheets, and session log needed to track that pad through to return — a full audit trail without anyone re-keying serial ranges by hand.</p>
+    <p><span class="pill pill-ss">FP10SS Manager</span> is for the machine-printed single sheets — FP10SS forms, overprinted via Symphony. Quantities in this volume can't practically be counted sheet by sheet, so this tool works out exactly how many sheets are in a stack from just the first three serials and the last one, then produces a Pharmacy Copy / Ward Copy log ready to print.</p>
+    <div class="notice-bar">This tool is intended for use by <strong>authorised Trust staff only</strong>.</div>
+    <div class="about-section-label">Support</div>
+    <p>For support or more information: <a href="mailto:ismael.yasin@nhs.net" style="color:var(--magenta);text-decoration:none;font-weight:500;">ismael.yasin@nhs.net</a></p>
+    <div class="about-version">Version 36.1</div>
+  </div>
+</div>
+
+<!-- How to use modal -->
+<div id="howToModal" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeHowTo()">&times;</button>
+    <h2>How to Use</h2>
+    <p>1. Take the serial numbers from the <strong style="color:var(--text);">first three sheets</strong> at the top of the stack and enter them in order.</p>
+    <p>2. Turn to the <strong style="color:var(--text);">last sheet</strong> at the bottom of the stack and enter its serial number, then enter the <strong style="color:var(--text);">department / FP10 code</strong> — required for the log. The name attached to the log is taken automatically from your account.</p>
+    <p>3. Click <strong style="color:var(--text);">Count Sheets &amp; Generate Log</strong>. The tool detects the pad's numbering pattern from your first three entries, works forward to the last serial to tell you exactly how many sheets are in the stack, and prepares the log entry for this session.</p>
+    <p>4. Click <strong style="color:var(--text);">Download Log (PDF)</strong> in the Pharmacy Log panel. The PDF contains a <strong style="color:var(--text);">Pharmacy Copy</strong> and a <strong style="color:var(--text);">Ward Copy</strong> of the same log, ready to print and split between the two.</p>
+    <p>Each session produces one log entry. To log a different stack, clear the log first and count again.</p>
+    <p>If the fields turn red, double-check the numbers — either they weren't entered in order, or the last serial doesn't belong to the same batch/pad as the first three.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script>
+// ============================================================================
+// AUTH GATE — the serial-number logic itself now lives server-side in the
+// fp10-logic Edge Function (see supabase/functions/fp10-logic). This page
+// only sends raw serials in and receives a computed result back.
+// ============================================================================
+let CURRENT_TRUST = null;
+let CURRENT_PROFILE = null;
+let MY_SITE_ID = null; // set once a site is chosen (or auto-chosen)
+
+const TRUST_READY = (async () => {
+  const session = await requireSession();
+  if (!session) return; // requireSession already redirected to login.html
+  CURRENT_TRUST = await getMyTrust();
+  CURRENT_PROFILE = await getMyProfile();
+  if (CURRENT_PROFILE?.isAuditor) { window.location.href = 'auditor.html'; return; }
+  const nameField = document.getElementById('generatedBy');
+  if (nameField && CURRENT_PROFILE) nameField.value = CURRENT_PROFILE.fullName;
+  loadRejectedSessions();
+  await loadMySites();
+})();
+
+async function loadMySites() {
+  try {
+    const { sites } = await callAdminUsers('list-my-sites', {});
+    if (!sites || sites.length === 0) return; // trust isn't using sites — skip entirely
+    const card = document.getElementById('siteCard');
+    if (sites.length === 1) {
+      MY_SITE_ID = sites[0].id;
+      card.innerHTML = `<label>Site</label><div style="font-weight:700;color:var(--navy);">${escapeHtmlSS(sites[0].name)}</div>`;
+    } else {
+      card.innerHTML = `
+        <label for="siteSelect">Site</label>
+        <select id="siteSelect" required>
+          <option value="">Select the site you're working at…</option>
+          ${sites.map(s => `<option value="${s.id}">${escapeHtmlSS(s.name)}</option>`).join('')}
+        </select>`;
+      document.getElementById('siteSelect').addEventListener('change', (e) => { MY_SITE_ID = e.target.value || null; });
+    }
+    card.style.display = 'block';
+  } catch (err) { /* non-fatal — proceed without site tracking */ }
+}
+
+async function loadRejectedSessions() {
+  const card = document.getElementById('rejectedCard');
+  const countEl = document.getElementById('rejectedCount');
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', { own_only: true });
+    let count = 0;
+    (sessions || []).forEach(s => {
+      if (s.app !== 'ss') return;
+      (s.register_log || []).forEach(r => {
+        if (r.rejected && !r.voided && !r.verified) count++;
+      });
+    });
+    if (!count) { card.style.display = 'none'; return; }
+    countEl.textContent = count === 1 ? '1 entry' : `${count} entries`;
+    card.style.display = 'block';
+  } catch (err) {
+    card.style.display = 'none';
+  }
+}
+
+// ============================================================================
+// UI WIRING
+// ============================================================================
+const serial1 = document.getElementById('serial1');
+const serial2 = document.getElementById('serial2');
+const serial3 = document.getElementById('serial3');
+const serialLast = document.getElementById('serialLast');
+const deptCode = document.getElementById('deptCode');
+const generatedBy = document.getElementById('generatedBy');
+const allInputs = [serial1, serial2, serial3, serialLast];
+const countBtn = document.getElementById('countBtn');
+const alertContainer = document.getElementById('alertContainer');
+const resultEl = document.getElementById('result');
+const resultEmptyEl = document.getElementById('resultEmpty');
+const resultCountEl = document.getElementById('resultCount');
+const resultDetailEl = document.getElementById('resultDetail');
+
+function showAlert(message) {
+  alertContainer.innerHTML = `<div class="alert alert-error show">${message}</div>`;
+}
+function clearAlert() {
+  alertContainer.innerHTML = '';
+}
+
+// Digits only, auto-advance focus once 11 digits are entered
+allInputs.forEach((input, i) => {
+  input.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 11);
+    this.classList.remove('valid', 'invalid');
+    resultEl.classList.remove('show');
+    resultEmptyEl.style.display = 'block';
+    clearAlert();
+    if (this.value.length === 11 && i < allInputs.length - 1) {
+      allInputs[i + 1].focus();
+      allInputs[i + 1].select();
+    }
+    refreshButtonState();
+  });
+});
+
+deptCode.addEventListener('input', function() {
+  this.classList.remove('invalid');
+  clearAlert();
+});
+
+function refreshButtonState() {
+  countBtn.disabled = !allInputs.every(i => i.value.length === 11);
+}
+
+countBtn.addEventListener('click', async function() {
+  clearAlert();
+  allInputs.forEach(i => i.classList.remove('valid', 'invalid'));
+  deptCode.classList.remove('invalid');
+  resultEl.classList.remove('show');
+  resultEmptyEl.style.display = 'block';
+
+  const [s1, s2, s3, sLast] = allInputs.map(i => i.value.trim());
+  const dept = deptCode.value.trim();
+
+  if (!allInputs.every(i => /^\d{11}$/.test(i.value))) {
+    allInputs.forEach(i => { if (i.value.length !== 11) i.classList.add('invalid'); });
+    showAlert('All four serial numbers must be exactly 11 digits.');
+    return;
+  }
+
+  if (!dept) {
+    deptCode.classList.add('invalid');
+    showAlert('Department / FP10 code is required for the log.');
+    deptCode.focus();
+    return;
+  }
+
+  // Sanity check: the first three serials (only 2 steps apart) should share
+  // the same batch prefix. The last serial is NOT checked against this —
+  // for large packs (e.g. FP10SS packs of 2000) the running count can carry
+  // into these leading digits well before reaching the last sheet, so a
+  // prefix mismatch there is expected, not an error.
+  const prefix = s1.substring(0, 7);
+  if (![s2, s3].every(s => s.startsWith(prefix))) {
+    [serial1, serial2, serial3].forEach(i => i.classList.add('invalid'));
+    showAlert("The first three serial numbers don't share the same batch prefix — check they're entered in order from the top of the stack.");
+    return;
+  }
+
+  countBtn.disabled = true;
+  const origLabel = countBtn.textContent;
+  countBtn.innerHTML = 'Counting…<span class="spinner"></span>';
+
+  try {
+    // The actual serial-pattern maths happens server-side — see
+    // supabase/functions/fp10-logic/serial.ts. The name attached to the
+    // log entry is the account's own stored name, returned by the server.
+    const { total, processedBy } = await callFp10Logic('count-stack', {
+      first: Number(s1), second: Number(s2), third: Number(s3), last: Number(sLast), deptCode: dept,
+    });
+
+    allInputs.forEach(i => i.classList.add('valid'));
+    resultCountEl.textContent = total;
+    resultDetailEl.innerHTML =
+      `<span class="k">First serial:</span> ${s1}\n` +
+      `<span class="k">Last serial: </span> ${sLast}\n` +
+      `<span class="k">Total sheets:</span> ${total}`;
+    resultDetailEl.style.whiteSpace = 'pre';
+    resultEmptyEl.style.display = 'none';
+    resultEl.classList.add('show');
+
+    addEntryToLog({ deptCode: dept, first: s1, second: s2, third: s3, last: sLast, total, processedBy });
+  } catch (err) {
+    allInputs.forEach(i => i.classList.add('invalid'));
+    showAlert(err.message);
+  } finally {
+    countBtn.disabled = false;
+    countBtn.textContent = origLabel;
+  }
+});
+
+// ============================================================================
+// PHARMACY LOG — one entry per session, PDF export with Pharmacy + Ward copies
+// Nothing here is persisted to storage — a fresh page load always starts clean.
+// ============================================================================
+const LOG_STATE = {
+  sessionDate: new Date().toLocaleDateString('en-GB'),
+  entry: null          // { deptCode, first, second, third, last, total, processedBy }
+};
+
+function renderLogList() {
+  const list = document.getElementById('logList');
+  const logCard = document.getElementById('logCard');
+
+  if (!LOG_STATE.entry) {
+    logCard.style.display = 'none';
+    return;
+  }
+  logCard.style.display = 'block';
+
+  const e = LOG_STATE.entry;
+  list.innerHTML = `
+    <div class="log-item">
+      <div class="log-item-row">
+        <div class="log-item-info">
+          <strong>${e.total} sheets</strong>${e.deptCode ? ' · ' + e.deptCode : ''}
+          <div class="log-item-serial">${e.first} → ${e.last}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function addEntryToLog({ deptCode, first, second, third, last, total, processedBy }) {
+  LOG_STATE.entry = {
+    date: LOG_STATE.sessionDate,
+    deptCode,
+    first,
+    second,
+    third,
+    last,
+    total,
+    processedBy: processedBy || CURRENT_PROFILE?.fullName || ''
+  };
+  renderLogList();
+  restoreLogActions();
+}
+
+function restoreLogActions() {
+  document.getElementById('logActions').innerHTML = `
+    <button class="btn-primary" id="submitLogBtn" style="flex:1;">Submit</button>`;
+}
+
+// Event delegation on the actions wrapper — survives the innerHTML swaps above
+document.getElementById('logActions').addEventListener('click', async function(e) {
+  if (e.target.id !== 'submitLogBtn' || !LOG_STATE.entry) return;
+
+  const btn = e.target;
+
+  const siteSelect = document.getElementById('siteSelect');
+  if (siteSelect && !MY_SITE_ID) {
+    showAlert('Please select which site this is for.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  try {
+    const en = LOG_STATE.entry;
+    await callFp10Logic('submit-ss-session', {
+      first: Number(en.first), second: Number(en.second), third: Number(en.third), last: Number(en.last),
+      deptCode: en.deptCode,
+      siteId: MY_SITE_ID,
+    });
+
+    document.getElementById('logActions').innerHTML = `
+      <div style="flex:1;font-size:0.9em;color:#1a7a3c;font-weight:600;line-height:1.5;">
+        ✓ Submitted — waiting to be verified by a Pharmacy Technician.
+        <span style="font-weight:400;color:var(--text-muted);">Once checked, it's stored for <strong>24 hours</strong> so you can print it — check
+        <strong>My Pending Prints</strong> on the home page. The record itself stays permanently for audit purposes; only the printable copy expires.</span>
+      </div>`;
+
+    // Clear the entered serials right away — leaving them in place invites
+    // an accidental second Count Sheets / Submit on the exact same stack.
+    allInputs.forEach(i => { i.value = ''; i.classList.remove('valid', 'invalid'); });
+    deptCode.value = '';
+    resultEl.classList.remove('show');
+    resultEmptyEl.style.display = 'block';
+
+    setTimeout(() => {
+      LOG_STATE.entry = null;
+      renderLogList();
+      restoreLogActions();
+      loadRejectedSessions();
+    }, 3500);
+  } catch (err) {
+    showAlert(err.message);
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+  }
+});
+
+async function loadImageAsDataURL(url) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    if (blob.type === 'image/svg+xml' || url.endsWith('.svg')) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(blob);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width || 200;
+          canvas.height = img.height || 80;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          URL.revokeObjectURL(objectUrl);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Failed to load SVG')); };
+        img.src = objectUrl;
+      });
+    } else {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (err) { console.error('Error loading image:', err); return null; }
+}
+
+function drawLogHalf(pdf, logoData, copyLabel, xOffset, halfWidth, pageHeight) {
+  const e = LOG_STATE.entry;
+  const centerX = xOffset + halfWidth / 2;
+  const margin = 9;
+  const contentLeft = xOffset + margin;
+  const contentRight = xOffset + halfWidth - margin;
+
+  if (logoData) pdf.addImage(logoData, 'PNG', contentLeft, 8, 44, 12);
+
+  pdf.setFontSize(13);
+  pdf.setTextColor(0, 48, 135);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('FP10SS Log', centerX, 27, { align: 'center' });
+
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(228, 0, 120);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(copyLabel, centerX, 33, { align: 'center' });
+
+  pdf.setDrawColor(200, 200, 200);
+  pdf.setLineWidth(0.2);
+  pdf.line(contentLeft, 37, contentRight, 37);
+
+  const labelX = contentLeft, valueX = contentLeft + 38;
+  let y = 46;
+  const rows = [
+    ['Date generated:', e.date],
+    ['Dept / FP10 Code:', e.deptCode || '—'],
+    ['First Serial:', e.first],
+    ['Last Serial:', e.last],
+    ['Total FP10SS forms:', String(e.total)],
+    ['Processed by:', e.processedBy || 'Not specified'],
+    ['Checked by:', '______________________']
+  ];
+
+  pdf.setFontSize(9.5);
+  rows.forEach(([label, value]) => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(90, 98, 120);
+    pdf.text(label, labelX, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(String(value), valueX, y);
+    y += 8.5;
+  });
+
+  const placeholderStyle = { textColor: [170, 170, 170], fontStyle: 'italic', fontSize: 8 };
+  const sigTableWidth = contentRight - contentLeft;
+  const dateColWidth = 32;
+  const nameColWidth = (sigTableWidth - dateColWidth) / 2;
+  pdf.autoTable({
+    startY: y + 5,
+    head: [['Supplied by', 'Received by', 'Date of receipt']],
+    body: [[
+      { content: 'Name & Sign', styles: placeholderStyle },
+      { content: 'Name & Sign', styles: placeholderStyle },
+      { content: '', styles: placeholderStyle }
+    ]],
+    margin: { left: contentLeft, right: xOffset + halfWidth - contentRight },
+    tableWidth: sigTableWidth,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 5, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3, minCellHeight: 14 },
+    headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', fontSize: 8, halign: 'center', lineColor: [0,0,0], lineWidth: 0.3 },
+    columnStyles: {
+      0: { cellWidth: nameColWidth },
+      1: { cellWidth: nameColWidth },
+      2: { cellWidth: dateColWidth }
+    }
+  });
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(192, 0, 60);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Must be retained for 2 years from date of receipt', centerX, pageHeight - 9, { align: 'center', maxWidth: halfWidth - margin * 2 });
+}
+
+async function generateStackLogPDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const halfWidth = pageWidth / 2;
+
+  await TRUST_READY; // make sure the trust/logo fetch has actually finished before we read it
+  const logoData = CURRENT_TRUST?.logoUrl ? await loadImageAsDataURL(CURRENT_TRUST.logoUrl) : null;
+
+  drawLogHalf(pdf, logoData, 'Pharmacy Copy', 0, halfWidth, pageHeight);
+  drawLogHalf(pdf, logoData, 'Ward Copy', halfWidth, halfWidth, pageHeight);
+
+  // Dashed cut line down the middle
+  pdf.setDrawColor(120, 120, 120);
+  pdf.setLineWidth(0.4);
+  pdf.setLineDashPattern([3, 2], 0);
+  pdf.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
+  pdf.setLineDashPattern([], 0);
+
+  return pdf;
+}
+
+async function downloadStackLog() {
+  if (!LOG_STATE.entry) return;
+  const btn = document.getElementById('downloadLogBtn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = 'Generating…<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    const pdf = await generateStackLogPDF();
+    const e = LOG_STATE.entry;
+    const deptPart = e.deptCode ? e.deptCode.replace(/[^a-z0-9]/gi, '') + '_' : '';
+    pdf.save(`FP10_Stack_Count_Log_${deptPart}${LOG_STATE.sessionDate.replace(/\//g,'-')}.pdf`);
+    btn.innerHTML = '✓ Downloaded';
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+  } catch (err) {
+    alert('Error generating PDF: ' + err.message);
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }
+}
+
+// ── Modals ──
+window.openAbout = () => document.getElementById('aboutModal').classList.add('open');
+window.closeAbout = () => document.getElementById('aboutModal').classList.remove('open');
+window.openHowTo = () => document.getElementById('howToModal').classList.add('open');
+window.closeHowTo = () => document.getElementById('howToModal').classList.remove('open');
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeAbout(); closeHowTo(); }
+});
+</script>
+</body>
+</html>

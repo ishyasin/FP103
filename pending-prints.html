@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Pending Prints — FP10 Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy: #1b3a6b;
+    --navy-dark: #122d56;
+    --magenta: #e8176e;
+    --magenta-dark: #c4115c;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #d0d5dd;
+    --text: #1a1f36;
+    --text-muted: #5a6278;
+    --text-hint: #9aa0b4;
+    --green: #00843d;
+    --green-pale: #d4edda;
+    --green-pale-text: #155724;
+    --red: #c0003c;
+    --red-pale: #f8d7da;
+    --red-pale-text: #721c24;
+    --shadow: 0 2px 6px rgba(27,58,107,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Fira Sans', Arial, sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--navy);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .gdg-text-logo{display:flex;align-items:baseline;gap:6px;line-height:1;}
+  .gdg-text-logo-main{font-size:17px;font-weight:700;color:#fff;}
+  .gdg-text-logo-sub{font-size:12px;font-weight:400;color:rgba(255,255,255,0.65);}
+  .btn-header{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:7px 14px;border-radius:5px;font-size:0.85em;font-weight:600;cursor:pointer;}
+  .btn-header:hover{background:rgba(255,255,255,0.1);}
+
+  main{max-width:1000px;margin:0 auto;padding:32px 24px 60px;}
+  h1{font-size:1.5em;color:var(--navy);margin-bottom:4px;}
+  h2{font-size:1em;color:var(--navy);margin:24px 0 10px;}
+  .subtitle{color:var(--text-muted);font-size:0.9em;margin-bottom:24px;}
+
+  .card{background:var(--surface);border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:0.86em;}
+  th{text-align:left;padding:9px 8px;color:var(--text-muted);font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.03em;border-bottom:2px solid var(--border);}
+  td{padding:9px 8px;border-bottom:1px solid #eef0f4;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:0.76em;font-weight:700;white-space:nowrap;}
+  .badge-pending{background:#fff3cd;color:#8a6416;}
+  .badge-verified{background:var(--green-pale);color:var(--green-pale-text);}
+  .badge-rejected{background:var(--red-pale);color:var(--red-pale-text);}
+  .badge-voided{background:#e5e8ee;color:var(--text-muted);}
+  .badge-expired{background:#e5e8ee;color:var(--text-muted);}
+
+  .btn-print{padding:6px 14px;border-radius:5px;font-size:0.82em;font-weight:600;cursor:pointer;background:var(--magenta);color:#fff;border:none;}
+  .btn-print--printed{background:var(--green) !important;}
+  .btn-print:hover:not(:disabled){background:var(--magenta-dark);}
+  .btn-print:disabled{opacity:0.5;cursor:not-allowed;}
+
+  .empty-state{color:var(--text-hint);font-size:0.9em;padding:20px;text-align:center;}
+  .rejection-note{color:var(--red-pale-text);font-size:0.85em;margin-top:6px;}
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:4px;height:32px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+    <div class="gdg-text-logo">
+      <span class="gdg-text-logo-main">GD&amp;G</span><span class="gdg-text-logo-sub">Special Projects™ — My Pending Prints</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-header" onclick="window.location.href='index.html'">Back to app</button>
+    <button class="btn-header" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div class="empty-state">Loading…</div>
+</main>
+
+<script>
+let ME = null;
+let TRUST = null;
+
+async function init() {
+  const session = await requireSession();
+  if (!session) return;
+  ME = await getMyProfile();
+  TRUST = await getMyTrust();
+
+  if (!ME || (ME.role !== 'user' && !ME.isVerifier && !ME.isPharmacist)) {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="empty-state">This page is only for accounts that generate FP10 documents.</div>`;
+    return;
+  }
+
+  await load();
+}
+
+async function load() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="empty-state">Loading…</div>';
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', { own_only: true });
+    render(sessions);
+  } catch (err) {
+    main.innerHTML = `<div class="empty-state">Couldn't load your sessions.</div>`;
+  }
+}
+
+function render(sessions) {
+  const main = document.getElementById('mainContent');
+  const ssSessions = sessions.filter(s => s.app === 'ss');
+  const hncSessions = sessions.filter(s => s.app === 'hnc');
+
+  let html = `<h1>My Pending Prints</h1><p class="subtitle">Documents you've generated. A rejected register needs correcting on the FP10SS/FP10HNC page — only that one, not the rest of its session.</p>`;
+
+  if (!sessions.length) {
+    html += '<div class="card"><div class="empty-state">Nothing generated yet.</div></div>';
+  }
+  if (ssSessions.length) {
+    html += `<h2>FP10SS</h2>` + ssSessions.map(ssCardHtml).join('');
+  }
+  if (hncSessions.length) {
+    html += `<h2>FP10HNC</h2>` + hncSessions.map(hncSessionCardHtml).join('');
+  }
+
+  main.innerHTML = html;
+
+  main.querySelectorAll('[data-print-register]').forEach(btn => {
+    btn.addEventListener('click', () => onPrintRegister(btn.dataset.printRegister, sessions));
+  });
+  main.querySelectorAll('[data-print-session-log]').forEach(btn => {
+    btn.addEventListener('click', () => onPrintSessionLog(btn.dataset.printSessionLog, sessions));
+  });
+}
+
+function registerStatus(r) {
+  if (r.voided) return { badge: '<span class="badge badge-voided">Voided</span>', canPrint: false, note: '' };
+  if (r.expired) return { badge: '<span class="badge badge-expired">Expired</span>', canPrint: false, note: 'Print window closed — regenerate if still needed' };
+  if (r.verified) return { badge: '<span class="badge badge-verified">Verified</span>', canPrint: true, note: '' };
+  if (r.rejected) return { badge: '<span class="badge badge-rejected">Sent back for correction</span>', canPrint: false, note: `Reason: ${escapeHtml(r.rejection_reason || '—')}` };
+  return { badge: '<span class="badge badge-pending">Awaiting verification</span>', canPrint: false, note: '' };
+}
+
+function ssCardHtml(s) {
+  const r = (s.register_log || [])[0];
+  if (!r) return '';
+  const st = registerStatus(r);
+  const date = new Date(s.submitted_at).toLocaleString('en-GB');
+  const correctLink = r.rejected ? `<a href="FP10SS_Manager.html" style="font-size:0.85em;">Go correct it →</a>` : '';
+
+  return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+        <div>
+          <strong>${escapeHtml(s.cost_centre || '—')}</strong>
+          <div style="color:var(--text-muted);font-size:0.8em;">Submitted ${escapeHtml(date)}</div>
+          ${st.note ? `<div class="rejection-note">${st.note}</div>` : ''}
+        </div>
+        <div style="text-align:right;">
+          ${st.badge}
+          <div style="margin-top:8px;">
+            ${st.canPrint ? `<button class="btn-print ${r.printed ? 'btn-print--printed' : ''}" data-print-register="${r.id}">${r.printed ? '✓ Printed' : 'Print'}</button>` : correctLink}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function hncSessionCardHtml(s) {
+  const registers = s.register_log || [];
+  const date = new Date(s.submitted_at).toLocaleString('en-GB');
+  const allVerified = registers.length > 0 && registers.every(r => r.verified && !r.voided && !r.expired);
+  const anyRejected = registers.some(r => r.rejected && !r.voided);
+
+  const rows = registers.map(r => {
+    const p = r.payload || {};
+    const st = registerStatus(r);
+    const canPrintThis = st.canPrint && allVerified; // nothing prints until every register in the session is checked
+    const correctLink = r.rejected ? `<a href="FP10_HNC_Manager.html" style="font-size:0.82em;">Correct →</a>` : '';
+    const waitingNote = st.canPrint && !allVerified
+      ? `<div style="font-size:0.78em;color:var(--text-hint);">Waiting on the rest of the session</div>` : '';
+    return `
+      <tr>
+        <td>${escapeHtml(new Date(r.created_at).toLocaleTimeString('en-GB'))}</td>
+        <td>${escapeHtml(String(p.first ?? '—'))}</td>
+        <td>${escapeHtml(String(p.last ?? '—'))}</td>
+        <td>${escapeHtml(String(p.total ?? '—'))}</td>
+        <td>${st.badge}${st.note ? `<div style="font-size:0.78em;color:#a01c2e;">${st.note}</div>` : ''}${waitingNote}</td>
+        <td>${canPrintThis ? `<button class="btn-print ${r.printed ? 'btn-print--printed' : ''}" data-print-register="${r.id}">${r.printed ? '✓ Printed' : 'Print register'}</button>` : correctLink}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <strong>${escapeHtml(s.cost_centre || '—')}</strong> — ${escapeHtml(date)} (${registers.length} register${registers.length === 1 ? '' : 's'})
+        </div>
+        <button class="btn-print ${allVerified && registers.every(r => r.printed) ? 'btn-print--printed' : ''}" data-print-session-log="${s.id}" ${allVerified ? '' : 'disabled'}
+          title="${anyRejected ? 'One or more registers were sent back — correct them first' : allVerified ? '' : 'Every register in this session must be verified first'}">
+          ${allVerified && registers.every(r => r.printed) ? '✓ Printed' : 'Print session log'}
+        </button>
+      </div>
+      <table>
+        <thead><tr><th>Time</th><th>First</th><th>Last</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+async function onPrintRegister(registerId, sessions) {
+  let session, register;
+  for (const s of sessions) {
+    const found = (s.register_log || []).find(r => r.id === registerId);
+    if (found) { session = s; register = found; break; }
+  }
+  if (!session || !register || !register.full_payload) {
+    alert('This document is no longer available to print.');
+    return;
+  }
+  // Nothing in a session can print until every register in it has been
+  // checked — even if this specific one was verified first.
+  const siblingRegisters = session.register_log || [];
+  const wholeSessionVerified = siblingRegisters.length > 0 && siblingRegisters.every(r => r.verified && !r.voided && !r.expired);
+  if (!wholeSessionVerified) {
+    alert('Every register in this session must be verified before any of them can be printed.');
+    return;
+  }
+
+  const btn = document.querySelector(`[data-print-register="${registerId}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+
+  try {
+    const logoData = TRUST?.logoUrl ? await loadImageAsDataURL(TRUST.logoUrl) : null;
+    if (session.app === 'ss') {
+      buildSSPdf(session, register, logoData).save(`FP10_Stack_Count_${(session.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
+    } else {
+      buildHNCRegisterOnlyPdf(session, register, logoData).save(`FP10_Register_${(register.payload?.deptCode || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
+    }
+
+    if (!register.printed) {
+      try { await callAdminUsers('mark-printed', { id: registerId }); } catch (err) { /* non-fatal — PDF already downloaded */ }
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✓ Printed';
+      btn.classList.add('btn-print--printed');
+    }
+  } catch (err) {
+    alert('Error generating PDF: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = session?.app === 'ss' ? 'Print' : 'Print register'; }
+  }
+}
+
+async function onPrintSessionLog(sessionId, sessions) {
+  const s = sessions.find(x => x.id === sessionId);
+  if (!s) return;
+  const registers = (s.register_log || []);
+  const usable = registers.filter(r => r.verified && !r.voided && !r.expired && r.full_payload);
+  if (usable.length !== registers.length || !usable.length) {
+    alert('Every register in this session must be verified before the session log can be printed.');
+    return;
+  }
+
+  const btn = document.querySelector(`[data-print-session-log="${sessionId}"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+
+  try {
+    const logoData = TRUST?.logoUrl ? await loadImageAsDataURL(TRUST.logoUrl) : null;
+    buildHNCSessionPdf(s, usable, logoData).save(`FP10_Session_${(s.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
+
+    await Promise.all(usable.filter(r => !r.printed).map(r =>
+      callAdminUsers('mark-printed', { id: r.id }).catch(() => {})
+    ));
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✓ Printed';
+      btn.classList.add('btn-print--printed');
+    }
+  } catch (err) {
+    alert('Error generating PDF: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Print session log'; }
+  }
+}
+
+async function loadImageAsDataURL(url) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) { console.error('Error loading logo:', err); return null; }
+}
+
+// ============================================================================
+// FP10SS reprint — Stack Count Log
+// ============================================================================
+function buildSSPdf(session, register, logoData) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const p = register.full_payload;
+  const checkedByValue = `${register.verified_by_name || '—'}  (${new Date(register.verified_at).toLocaleString('en-GB')}) — verified electronically`;
+
+  [0, 1].forEach((half) => {
+    const xOffset = half * (pageWidth / 2);
+    const halfWidth = pageWidth / 2;
+    const centerX = xOffset + halfWidth / 2;
+    const margin = 9;
+    const contentLeft = xOffset + margin;
+    const contentRight = xOffset + halfWidth - margin;
+    const copyLabel = half === 0 ? 'Pharmacy Copy' : 'Ward Copy';
+
+    if (logoData) pdf.addImage(logoData, 'PNG', contentLeft, 8, 44, 12);
+
+    pdf.setFontSize(13);
+    pdf.setTextColor(0, 48, 135);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('FP10SS Log', centerX, 27, { align: 'center' });
+
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(228, 0, 120);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(copyLabel, centerX, 33, { align: 'center' });
+
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(0.2);
+    pdf.line(contentLeft, 37, contentRight, 37);
+
+    const labelX = contentLeft, valueX = contentLeft + 38;
+    let y = 46;
+    const rows = [
+      ['Date generated:', new Date(session.submitted_at).toLocaleDateString('en-GB')],
+      ['Dept / FP10 Code:', p.deptCode || '—'],
+      ['First Serial:', p.first],
+      ['Last Serial:', p.last],
+      ['Total FP10SS forms:', String(p.total)],
+      ['Processed by:', p.processedBy || 'Not specified'],
+      ['Checked by:', checkedByValue],
+    ];
+
+    pdf.setFontSize(9.5);
+    rows.forEach(([label, value]) => {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(90, 98, 120);
+      pdf.text(label, labelX, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(String(value), valueX, y, { maxWidth: contentRight - valueX });
+      y += 8.5;
+    });
+
+    const placeholderStyle = { textColor: [170, 170, 170], fontStyle: 'italic', fontSize: 8 };
+    const sigTableWidth = contentRight - contentLeft;
+    const dateColWidth = 32;
+    const nameColWidth = (sigTableWidth - dateColWidth) / 2;
+    pdf.autoTable({
+      startY: y + 5,
+      head: [['Supplied by', 'Received by', 'Date of receipt']],
+      body: [[
+        { content: 'Name & Sign', styles: placeholderStyle },
+        { content: 'Name & Sign', styles: placeholderStyle },
+        { content: '', styles: placeholderStyle }
+      ]],
+      margin: { left: contentLeft, right: xOffset + halfWidth - contentRight },
+      tableWidth: sigTableWidth,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 5, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3, minCellHeight: 14 },
+      headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', fontSize: 8, halign: 'center', lineColor: [0,0,0], lineWidth: 0.3 },
+      columnStyles: { 0: { cellWidth: nameColWidth }, 1: { cellWidth: nameColWidth }, 2: { cellWidth: dateColWidth } }
+    });
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(192, 0, 60);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Must be retained for 2 years from date of receipt', centerX, pageHeight - 9, { align: 'center', maxWidth: halfWidth - margin * 2 });
+
+    if (session.site_name) {
+      pdf.setFontSize(8);
+      pdf.setTextColor(90, 98, 120);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(session.site_name, centerX, pageHeight - 4, { align: 'center' });
+    }
+  });
+
+  pdf.setDrawColor(120, 120, 120);
+  pdf.setLineWidth(0.4);
+  pdf.setLineDashPattern([3, 2], 0);
+  pdf.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
+  pdf.setLineDashPattern([], 0);
+
+  return pdf;
+}
+
+// ============================================================================
+// FP10HNC reprint — every register's cover+table, then one session log page
+// listing every register in the session together
+// ============================================================================
+function buildHNCRegisterOnlyPdf(session, register, logoData) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const p = register.full_payload;
+  const serials = p.serials || [];
+  const serialRange = `${p.first} - ${p.last}`;
+  const siteName = session.site_name || null;
+  const checkedByText = register.verified
+    ? `${register.verified_by_name || '—'} (${new Date(register.verified_at).toLocaleString('en-GB')}) — verified electronically, no signature required`
+    : 'pending verification';
+
+  if (logoData) pdf.addImage(logoData, 'PNG', 15, 15, 72, 20);
+
+  pdf.setFontSize(20);
+  pdf.setTextColor(255, 0, 0);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('FP10 Register (Controlled Stationery)', pageWidth / 2, 50, { align: 'center' });
+
+  pdf.setFontSize(12);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text('Date of issue: ___________________________', pageWidth / 2, 65, { align: 'center' });
+
+  pdf.autoTable({
+    startY: 80,
+    head: [['Staff member', 'Print name', 'Signature']],
+    body: [['Supplied by (Pharmacy)', '', ''], ['Received by (Registered professional)', '', '']],
+    margin: { left: 50, right: 50 },
+    theme: 'grid',
+    styles: { fontSize: 11, cellPadding: 8, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3 },
+    headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', lineColor: [0,0,0], lineWidth: 0.3 },
+    columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 50 }, 2: { cellWidth: 50 } }
+  });
+
+  let finalY = pdf.lastAutoTable.finalY + 15;
+  pdf.setFontSize(11);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(`FP10 serial number range: ${serialRange}`, pageWidth / 2, finalY, { align: 'center' });
+  pdf.text(`Speciality / Department code: ${p.deptCode || '—'}`, pageWidth / 2, finalY + 8, { align: 'center' });
+
+  finalY += 24;
+  pdf.setFontSize(9.5);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(90, 98, 120);
+  pdf.text(`Generated by: ${p.processedBy || '—'}`, pageWidth / 2, finalY, { align: 'center' });
+  finalY += 7;
+  pdf.text(`Checked by: ${checkedByText}`, pageWidth / 2, finalY, { align: 'center', maxWidth: pageWidth - 40 });
+
+  // Site footer on the cover sheet itself
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(90, 98, 120);
+  pdf.text(siteName || '', pageWidth / 2, pageHeight - 8, { align: 'center' });
+
+  const MAX_ROWS = 17;
+  const total = serials.length;
+  let rowsPerPage;
+  if (total <= MAX_ROWS) {
+    rowsPerPage = total;
+  } else {
+    const remainder = total % MAX_ROWS;
+    rowsPerPage = (remainder > 0 && remainder < 8) ? Math.ceil(total / Math.ceil(total / MAX_ROWS)) : MAX_ROWS;
+  }
+  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+
+  for (let page = 0; page < totalPages; page++) {
+    pdf.addPage();
+    if (logoData) pdf.addImage(logoData, 'PNG', 10, 10, 60, 16);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(255, 0, 0);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('The completed register must be returned to pharmacy before issuing further FP10s', pageWidth / 2, 30, { align: 'center' });
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`Speciality/Trust code: ${p.deptCode || '—'}`, 10, 37);
+    if (siteName) pdf.text(`Site: ${siteName}`, pageWidth - 10, 37, { align: 'right' });
+
+    const startIdx = page * rowsPerPage;
+    const endIdx = Math.min(startIdx + rowsPerPage, total);
+    const tableData = serials.slice(startIdx, endIdx).map(s => ['', s, '', '', '', '', '']);
+
+    pdf.autoTable({
+      startY: 42,
+      head: [['Date of issue', 'FP10 serial number', 'Patient name', 'Patient ID', 'Medication(s) issued', 'Prescriber (Name and Registration Number)', 'Signature']],
+      body: tableData,
+      margin: { left: 8, right: 8, bottom: 12 },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2.5, halign: 'center', valign: 'middle', overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.3 },
+      headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', fontSize: 8, lineColor: [0,0,0], lineWidth: 0.3 },
+      columnStyles: { 0:{cellWidth:28}, 1:{cellWidth:32}, 2:{cellWidth:50}, 3:{cellWidth:28}, 4:{cellWidth:65}, 5:{cellWidth:42}, 6:{cellWidth:34} }
+    });
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(90, 98, 120);
+    pdf.text(`FP10 serial number range: ${serialRange}${siteName ? '   |   ' + siteName : ''}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+    pdf.text(`Serial Range: ${serialRange} | ${p.deptCode || '—'} | Page ${page + 1} of ${totalPages}`, 5, pageHeight / 2, { angle: 90 });
+    pdf.setTextColor(0, 0, 0);
+  }
+
+  return pdf;
+}
+
+// ============================================================================
+// FP10HNC reprint — Session Log ONLY, listing every register in the session
+// together (each register itself prints separately via buildHNCRegisterOnlyPdf)
+// ============================================================================
+function buildHNCSessionPdf(session, registers, logoData) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHeight);
+
+  return pdf;
+}
+
+function drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHeight) {
+  if (logoData) pdf.addImage(logoData, 'PNG', 10, 10, 60, 16);
+
+  pdf.setFontSize(16);
+  pdf.setTextColor(46, 94, 158);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('FP10 Register Session Log - Pharmacy Copy', pageWidth / 2, 35, { align: 'center' });
+
+  pdf.setFontSize(22);
+  pdf.setTextColor(232, 23, 110);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(session.cost_centre || '—', pageWidth - 10, 20, { align: 'right' });
+
+  // Every register in this session is verified before this page can print —
+  // usually by the same Technician, but registers are checked individually
+  // now, so this covers both a single checker and, rarely, more than one.
+  const uniqueVerifiers = [...new Set(registers.map(r => r.verified_by_name || '—'))];
+  const checkedBySummary = uniqueVerifiers.length <= 1
+    ? `${uniqueVerifiers[0] || '—'} (${new Date(registers[registers.length - 1].verified_at).toLocaleString('en-GB')}) — verified electronically`
+    : `${uniqueVerifiers.join(', ')} — verified electronically`;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'normal');
+  if (session.site_name) pdf.text(`Site: ${session.site_name}`, 10, 43);
+  pdf.text(`Session Date: ${new Date(session.submitted_at).toLocaleDateString('en-GB')}`, 10, 50);
+  pdf.text(`Generated By: ${session.generated_by || '—'}`, 10, 57);
+  pdf.text(`Total Registers: ${registers.length}`, 10, 64);
+  pdf.text(`Checked By: ${checkedBySummary}`, 10, 71, { maxWidth: pageWidth - 20 });
+
+  const placeholderStyle = { textColor: [170, 170, 170], fontStyle: 'italic' };
+  const tableData = [];
+  const reassignedNames = new Set();
+  registers.forEach((r, i) => {
+    const p = r.full_payload;
+    // A register's own processedBy reflects whoever actually completed it
+    // last — if that's not the session's original generator, mark it.
+    const wasReassigned = p.processedBy && session.generated_by && p.processedBy !== session.generated_by;
+    if (wasReassigned) reassignedNames.add(p.processedBy);
+    const registerLabel = wasReassigned ? `${i + 1}*` : String(i + 1);
+
+    tableData.push([
+      { content: registerLabel, rowSpan: 3 },
+      { content: new Date(r.created_at).toLocaleDateString('en-GB'), rowSpan: 3 },
+      { content: p.deptCode || '—', rowSpan: 3 },
+      { content: p.first, rowSpan: 3 },
+      { content: p.last, rowSpan: 3 },
+      { content: p.total, rowSpan: 3 },
+      { content: 'Name & Reg', styles: placeholderStyle },
+      { content: 'Name & Reg', styles: placeholderStyle },
+      { content: '', rowSpan: 3 },
+      { content: 'Name & Reg', styles: placeholderStyle },
+      { content: 'Name & Reg', styles: placeholderStyle }
+    ]);
+    tableData.push([
+      { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle }
+    ]);
+    tableData.push([
+      { content: 'Date', styles: placeholderStyle },
+      { content: 'Date', styles: placeholderStyle },
+      { content: 'Date', styles: placeholderStyle },
+      { content: 'Date', styles: placeholderStyle }
+    ]);
+  });
+
+  const footerText = (session.site_name ? `Site: ${session.site_name}   |   ` : '')
+    + `Session Date: ${new Date(session.submitted_at).toLocaleDateString('en-GB')}   |   `
+    + `Generated By: ${session.generated_by || '—'}   |   `
+    + `Total Registers: ${registers.length}   |   `
+    + `Checked By: ${checkedBySummary}`
+    + (reassignedNames.size ? `   |   * Corrected by: ${[...reassignedNames].join(', ')}` : '');
+
+  pdf.autoTable({
+    startY: 78,
+    head: [['Register', 'Date\nCreated', 'Dept. Code', 'First Serial', 'Last Serial', 'Total', 'Supplied by', 'Received by', 'Quantity\nReturned', 'Returned by', 'Received into\npharm by']],
+    body: tableData,
+    margin: { left: 10, right: 10, bottom: 16 },
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 4, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3, overflow: 'linebreak', minCellHeight: 9 },
+    headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', valign: 'middle', fontSize: 8, lineColor: [0,0,0], lineWidth: 0.3, minCellHeight: 10 },
+    columnStyles: { 0:{cellWidth:22,halign:'center'}, 1:{cellWidth:22}, 2:{cellWidth:24}, 3:{cellWidth:25}, 4:{cellWidth:25}, 5:{cellWidth:20,halign:'center'}, 6:{cellWidth:30}, 7:{cellWidth:30}, 8:{cellWidth:22,halign:'center'}, 9:{cellWidth:30}, 10:{cellWidth:30} },
+    didDrawPage: () => {
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(90, 98, 120);
+      pdf.text(footerText, pageWidth / 2, pageHeight - 6, { align: 'center', maxWidth: pageWidth - 20 });
+      pdf.setTextColor(0, 0, 0);
+    },
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>

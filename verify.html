@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Verify — FP10 Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+
+  :root {
+    --navy: #1b3a6b;
+    --navy-dark: #122d56;
+    --magenta: #e8176e;
+    --magenta-dark: #c4115c;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #d0d5dd;
+    --text: #1a1f36;
+    --text-muted: #5a6278;
+    --text-hint: #9aa0b4;
+    --green: #00843d;
+    --green-pale: #d4edda;
+    --green-pale-text: #155724;
+    --red: #c0003c;
+    --red-pale: #f8d7da;
+    --red-pale-text: #721c24;
+    --shadow: 0 2px 6px rgba(27,58,107,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Fira Sans', Arial, sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--navy);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .gdg-text-logo{display:flex;align-items:baseline;gap:6px;line-height:1;}
+  .gdg-text-logo-main{font-size:17px;font-weight:700;color:#fff;}
+  .gdg-text-logo-sub{font-size:12px;font-weight:400;color:rgba(255,255,255,0.65);}
+  .btn-header{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:7px 14px;border-radius:5px;font-size:0.85em;font-weight:600;cursor:pointer;}
+  .btn-header:hover{background:rgba(255,255,255,0.1);}
+
+  main{max-width:1100px;margin:0 auto;padding:32px 24px 60px;}
+  h1{font-size:1.5em;color:var(--navy);margin-bottom:4px;}
+  .subtitle{color:var(--text-muted);font-size:0.9em;margin-bottom:28px;}
+
+  .start-card{background:#fff;border-radius:8px;padding:48px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08);border:1px solid var(--border);}
+  .start-card p{color:var(--text-muted);margin-bottom:24px;font-size:0.95em;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
+
+  button.btn-primary{background:var(--magenta);color:#fff;border:none;padding:13px 28px;border-radius:6px;font-weight:700;font-size:0.95em;cursor:pointer;}
+  button.btn-primary:hover:not(:disabled){background:var(--magenta-dark);}
+  button.btn-primary:disabled{opacity:0.6;cursor:not-allowed;}
+  button.btn-secondary{background:#fff;color:var(--navy);border:1px solid #d0d5dd;padding:10px 18px;border-radius:6px;font-weight:600;font-size:0.87em;cursor:pointer;}
+  button.btn-secondary:hover{background:var(--bg);}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .toolbar-actions{display:flex;gap:10px;}
+
+  .card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.08);border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:0.86em;}
+  th{text-align:left;padding:9px 8px;color:var(--text-muted);font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.03em;border-bottom:2px solid var(--border);}
+  td{padding:9px 8px;border-bottom:1px solid #eef0f4;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr.voided td{opacity:0.5;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:0.76em;font-weight:700;white-space:nowrap;}
+  .badge-pending{background:#fff3cd;color:#8a6416;}
+  .badge-verified{background:var(--green-pale);color:var(--green-pale-text);}
+  .badge-voided{background:var(--red-pale);color:var(--red-pale-text);}
+
+  .btn-verify{padding:6px 12px;border-radius:5px;font-size:0.82em;font-weight:600;cursor:pointer;background:var(--green-pale);color:var(--green-pale-text);border:1px solid #a8e0b8;}
+  .btn-verify:hover{background:#bdeecb;}
+  .own-note{color:#8a91a3;font-size:0.8em;font-style:italic;}
+
+  .empty-state{color:#8a91a3;font-size:0.9em;padding:20px;text-align:center;}
+  .error{background:var(--red-pale);color:#721c24;padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
+  .error.show{display:block;}
+  .success{background:var(--green-pale);color:var(--green-pale-text);padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
+  .success.show{display:block;}
+  .not-authorised{max-width:480px;margin:80px auto;text-align:center;color:var(--text-muted);}
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:4px;height:32px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+    <div class="gdg-text-logo">
+      <span class="gdg-text-logo-main">GD&amp;G</span><span class="gdg-text-logo-sub">Special Projects™ — Verification</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-header" onclick="window.location.href='index.html'">Back to app</button>
+    <button class="btn-header" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div class="empty-state">Loading…</div>
+</main>
+
+<script>
+let ME = null;
+let SESSIONS = [];
+let CONFIRM_PENDING_ID = null; // tracks which session's Verify button is in "Confirm" state
+let HIDE_VERIFIED = false;
+
+async function init() {
+  const session = await requireSession();
+  if (!session) return;
+
+  ME = await getMyProfile();
+  const main = document.getElementById('mainContent');
+
+  if (!ME || (!ME.isVerifier && !ME.isPharmacist && !ME.isSuperuser)) {
+    main.innerHTML = `
+      <div class="not-authorised">
+        <h1 style="margin-bottom:10px;">Not authorised</h1>
+        <p>This page is only available to Pharmacy Technician or Pharmacist accounts.</p>
+      </div>`;
+    return;
+  }
+
+  renderStart();
+}
+
+function renderStart() {
+  document.getElementById('mainContent').innerHTML = `
+    <h1>Final Check</h1>
+    <p class="subtitle">Review generated FP10SS/FP10HNC sessions and verify or reject them.</p>
+    <div class="start-card">
+      <p>Starting a final check will load every session for ${ME.isSuperuser ? 'the selected trust' : 'your trust'} — pending, verified, rejected, and voided — so you can review and act on anything outstanding.</p>
+      <button class="btn-primary" id="startBtn">Start Final Check</button>
+    </div>`;
+  document.getElementById('startBtn').addEventListener('click', startCheck);
+}
+
+let TICK_INTERVAL = null;
+
+async function startCheck() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="empty-state">Loading sessions…</div>';
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', {});
+    SESSIONS = sessions;
+    CONFIRM_PENDING_ID = null;
+    renderList();
+
+    // Re-draw just the progress bars every 30s so they visibly tick along
+    // without needing a manual refresh — cheap, since it only touches the
+    // DOM, not the server.
+    if (TICK_INTERVAL) clearInterval(TICK_INTERVAL);
+    TICK_INTERVAL = setInterval(() => {
+      if (CONFIRM_PENDING_ID === null) renderList(); // don't yank a Confirm button out from under someone mid-click
+    }, 30000);
+  } catch (err) {
+    main.innerHTML = `<div class="empty-state">Couldn't load sessions.</div>`;
+    showErrorStandalone(err.message);
+  }
+}
+
+function renderList() {
+  const main = document.getElementById('mainContent');
+  const pendingCount = SESSIONS.reduce((n, s) => {
+    const isOwnSession = s.user_id === ME.id && !ME.isPharmacist;
+    return n + (isOwnSession ? 0 : (s.register_log || []).filter(r => !r.verified && !r.rejected && !r.voided).length);
+  }, 0);
+
+  const visibleSessions = HIDE_VERIFIED
+    ? SESSIONS.map(s => ({ ...s, register_log: (s.register_log || []).filter(r => !r.verified) })).filter(s => (s.register_log || []).length > 0)
+    : SESSIONS;
+
+  main.innerHTML = `
+    <h1>Final Check</h1>
+    <p class="subtitle">${pendingCount} register${pendingCount === 1 ? '' : 's'} awaiting verification. Tick each register individually — only the ones you reject go back for correction.</p>
+    <div id="alertBox" class="error"></div>
+    <div id="successBox" class="success"></div>
+    <div class="toolbar">
+      <button class="btn-secondary" id="refreshBtn">Refresh</button>
+      <div class="toolbar-actions">
+        <button class="btn-secondary" id="hideVerifiedBtn">${HIDE_VERIFIED ? 'Show verified' : 'Hide verified'}</button>
+        <button class="btn-primary" id="downloadBtn">Download Report</button>
+      </div>
+    </div>
+    ${visibleSessions.length === 0 ? '<div class="card"><div class="empty-state">Nothing here.</div></div>' : visibleSessions.map(sessionCardHtml).join('')}
+  `;
+
+  document.getElementById('refreshBtn').addEventListener('click', startCheck);
+  document.getElementById('downloadBtn').addEventListener('click', downloadReport);
+  document.getElementById('hideVerifiedBtn').addEventListener('click', () => { HIDE_VERIFIED = !HIDE_VERIFIED; renderList(); });
+  document.querySelectorAll('[data-verify-id]').forEach(btn => {
+    btn.addEventListener('click', () => onVerifyClick(btn.dataset.verifyId));
+  });
+  document.querySelectorAll('[data-reject-id]').forEach(btn => {
+    btn.addEventListener('click', () => onReject(btn.dataset.rejectId));
+  });
+}
+
+function sessionCardHtml(s) {
+  const registers = s.register_log || [];
+  const appLabel = s.app === 'ss' ? 'FP10SS' : 'FP10HNC';
+  const isLockedToOther = s.assigned_verifier && s.assigned_verifier !== ME.id && !ME.isSuperuser;
+  const lockNote = s.assigned_verifier
+    ? `<div style="font-size:0.78em;color:${isLockedToOther ? '#a01c2e' : '#1a7a3c'};margin-top:2px;">
+        ${isLockedToOther ? `🔒 Being checked by ${escapeHtml(s.assigned_verifier_name || 'another Technician')}` : '🔒 You are checking this session'}
+       </div>`
+    : '';
+
+  // All registers in one session/log must share the same FP10 cost code —
+  // flag it clearly if they don't, rather than letting a mismatch slip
+  // through unnoticed.
+  const codes = registers.filter(r => !r.voided).map(r => (r.payload?.deptCode || '').trim());
+  const uniqueCodes = [...new Set(codes.filter(c => c))];
+  const hasMismatch = uniqueCodes.length > 1;
+  const majorityCode = hasMismatch
+    ? codes.reduce((acc, c) => { acc[c] = (acc[c] || 0) + 1; return acc; }, {})
+    : null;
+  const expectedCode = hasMismatch
+    ? Object.entries(majorityCode).sort((a, b) => b[1] - a[1])[0][0]
+    : uniqueCodes[0];
+
+  const mismatchBanner = hasMismatch
+    ? `<div style="background:#fdecef;border:1px solid var(--red);border-radius:6px;padding:8px 12px;margin:8px 0;font-size:0.85em;color:#a01c2e;">
+        ⚠ <strong>Cost codes don't match within this session</strong> — every register in the same log should have the same FP10 code (e.g. all RYR73). Check the flagged row(s) below before verifying.
+       </div>`
+    : '';
+
+  const rows = registers.map(r => registerRowHtml(s, r, isLockedToOther, expectedCode)).join('');
+
+  return `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="margin-bottom:10px;">
+        <strong>${appLabel}</strong> — ${escapeHtml(s.cost_centre || '—')} · ${escapeHtml(s.generated_by || '—')}${s.site_name ? ` · <span style="color:var(--navy);font-weight:600;">📍 ${escapeHtml(s.site_name)}</span>` : ''}
+        <div style="color:var(--text-muted);font-size:0.8em;">Submitted ${escapeHtml(new Date(s.submitted_at).toLocaleString('en-GB'))}</div>
+        ${lockNote}
+      </div>
+      ${mismatchBanner}
+      <table>
+        <thead><tr><th>Time</th><th>Cost Centre</th><th>First</th><th>Last</th><th>Total</th><th>Waiting</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function diffRowHtml(s, r) {
+  const prev = r.previous_payload;
+  const curr = r.payload;
+  if (!prev) return '';
+  const fields = [
+    ['Cost centre', prev.deptCode, curr.deptCode],
+    ['First serial', prev.first, curr.first],
+    ['Last serial', prev.last, curr.last],
+    ['Total', prev.total, curr.total],
+  ];
+  const changed = fields.filter(([, before, after]) => before !== after);
+  if (!changed.length) return '';
+
+  const rows = changed.map(([label, before, after]) => `
+    <tr>
+      <td style="font-weight:600;color:var(--text-muted);">${escapeHtml(label)}</td>
+      <td style="color:#a01c2e;text-decoration:line-through;">${escapeHtml(String(before ?? '—'))}</td>
+      <td style="color:#1a7a3c;font-weight:700;">${escapeHtml(String(after ?? '—'))}</td>
+    </tr>`).join('');
+
+  return `
+    <tr>
+      <td colspan="8" style="padding:0;border-bottom:1px solid #eef0f4;">
+        <div style="background:#eef4fb;border-left:4px solid var(--navy);padding:10px 14px;margin:2px 0;">
+          <div style="font-weight:700;color:var(--navy);font-size:0.85em;margin-bottom:6px;">📝 Track Changes — corrected by ${escapeHtml(s.generated_by || 'the person who generated this')}</div>
+          <table style="width:auto;font-size:0.85em;">
+            <thead><tr><th style="padding:2px 12px 2px 0;">Field</th><th style="padding:2px 12px;">Before</th><th style="padding:2px 0;">After</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function registerRowHtml(s, r, isLockedToOther, expectedCode) {
+  const p = r.payload || {};
+  const isOwn = s.user_id === ME.id && !ME.isPharmacist;
+  let statusBadge, actionCell;
+
+  const codeMismatch = expectedCode && !r.voided && (p.deptCode || '').trim() !== expectedCode;
+  const costCentreCell = codeMismatch
+    ? `<span style="color:#a01c2e;font-weight:700;">⚠ ${escapeHtml(p.deptCode || '—')}</span>`
+    : escapeHtml(p.deptCode || '—');
+
+  const wasCorrected = !!r.previous_payload && !r.verified && !r.rejected && !r.voided;
+  const pendingBadge = wasCorrected
+    ? '<span class="badge" style="background:#ffe4b3;color:#8a5000;">🔔 Corrected — Recheck</span>'
+    : '<span class="badge badge-pending">Pending</span>';
+
+  if (r.voided) {
+    statusBadge = '<span class="badge badge-voided">Voided</span>';
+    actionCell = '';
+  } else if (r.verified) {
+    statusBadge = '<span class="badge badge-verified">Verified</span>';
+    actionCell = `<span style="color:#1a7a3c;font-size:0.8em;">${escapeHtml(r.verified_by_name || '—')}</span>`;
+  } else if (r.rejected) {
+    statusBadge = '<span class="badge" style="background:#f8d7da;color:#a01c2e;">Sent back</span>';
+    actionCell = `<span style="color:#a01c2e;font-size:0.8em;" title="${escapeHtml(r.rejection_reason || '')}">reason: ${escapeHtml(r.rejection_reason || '—')}</span>`;
+  } else if (isOwn) {
+    statusBadge = pendingBadge;
+    actionCell = '<span class="own-note">Not yours to check</span>';
+  } else if (isLockedToOther) {
+    statusBadge = pendingBadge;
+    actionCell = '<span class="own-note">🔒 Locked to another Technician</span>';
+  } else if (CONFIRM_PENDING_ID === r.id) {
+    statusBadge = pendingBadge;
+    actionCell = `
+      <button class="btn-verify" data-verify-id="${r.id}" style="background:#1a7a3c;color:#fff;">Confirm ✓</button>
+      <button class="btn-secondary" onclick="cancelConfirm()" style="padding:4px 10px;font-size:0.8em;">Cancel</button>`;
+  } else {
+    statusBadge = pendingBadge;
+    actionCell = `
+      <button class="btn-verify" data-verify-id="${r.id}">Verify</button>
+      <button class="btn-secondary" data-reject-id="${r.id}" style="color:#a01c2e;border-color:#eeb4bb;padding:4px 10px;font-size:0.8em;">Reject</button>`;
+  }
+
+  const diffRow = diffRowHtml(s, r);
+  const isPending = !r.voided && !r.verified && !r.rejected;
+  const turnaroundCell = isPending ? turnaroundBarHtml(r.created_at, s.turnaround_target_minutes) : '';
+
+  return `
+    <tr class="${r.voided ? 'voided' : ''}">
+      <td>${escapeHtml(new Date(r.created_at).toLocaleTimeString('en-GB'))}</td>
+      <td>${costCentreCell}</td>
+      <td>${escapeHtml(String(p.first ?? '—'))}</td>
+      <td>${escapeHtml(String(p.last ?? '—'))}</td>
+      <td>${escapeHtml(String(p.total ?? '—'))}</td>
+      <td>${turnaroundCell}</td>
+      <td>${statusBadge}</td>
+      <td>${actionCell}</td>
+    </tr>${diffRow}`;
+}
+
+// Colour-coded progress bar showing how much of the trust's checking
+// turnaround target has elapsed since this register was submitted:
+// green for the first third, amber the second, red the last third
+// (and anything past the target).
+function turnaroundBarHtml(createdAt, targetMinutes) {
+  const target = (targetMinutes || 120) * 60 * 1000;
+  const elapsed = Date.now() - new Date(createdAt).getTime();
+  const fraction = Math.max(0, Math.min(1, elapsed / target));
+  const color = fraction < 1 / 3 ? '#2ecc71' : fraction < 2 / 3 ? '#f0b429' : '#e74c3c';
+  const elapsedMins = Math.floor(elapsed / 60000);
+  const elapsedLabel = elapsedMins < 60 ? `${elapsedMins}m` : `${Math.floor(elapsedMins / 60)}h ${elapsedMins % 60}m`;
+  const overdue = elapsed > target;
+
+  return `
+    <div style="width:70px;">
+      <div style="background:#e5e8ee;border-radius:4px;height:6px;overflow:hidden;">
+        <div style="width:${(fraction * 100).toFixed(0)}%;height:100%;background:${color};transition:width 1s linear;"></div>
+      </div>
+      <div style="font-size:0.72em;color:${overdue ? '#a01c2e' : 'var(--text-muted)'};margin-top:2px;font-weight:${overdue ? '700' : '400'};">${elapsedLabel}${overdue ? ' overdue' : ''}</div>
+    </div>`;
+}
+// Verify requires a second click to confirm, to prevent accidentally
+// verifying the wrong register.
+function onVerifyClick(id) {
+  if (CONFIRM_PENDING_ID === id) {
+    doVerify(id);
+  } else {
+    CONFIRM_PENDING_ID = id;
+    renderList();
+  }
+}
+
+window.cancelConfirm = function() {
+  CONFIRM_PENDING_ID = null;
+  renderList();
+};
+
+async function doVerify(id) {
+  try {
+    await callAdminUsers('verify-register', { id });
+    CONFIRM_PENDING_ID = null;
+    await startCheck();
+    showSuccessStandalone('Register verified.');
+  } catch (err) {
+    CONFIRM_PENDING_ID = null;
+    renderList();
+    showErrorStandalone(err.message);
+  }
+}
+
+async function onReject(id) {
+  const reason = prompt('Why is this register being sent back? (e.g. wrong cost centre, wrong sheet count) — this will be shown to the person who generated it.');
+  if (reason === null) return;
+  if (!reason.trim()) { showErrorStandalone('A reason is required to reject a register.'); return; }
+
+  try {
+    await callAdminUsers('reject-register', { id, reason: reason.trim() });
+    await startCheck();
+    showSuccessStandalone('Register sent back for correction.');
+  } catch (err) {
+    showErrorStandalone(err.message);
+  }
+}
+
+function downloadReport() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  pdf.setFontSize(14);
+  pdf.text('FP10 Verification Report', 14, 15);
+  pdf.setFontSize(9);
+  pdf.text(`Generated ${new Date().toLocaleString('en-GB')} by ${ME.fullName}`, 14, 21);
+
+  const rows = [];
+  SESSIONS.forEach(s => {
+    (s.register_log || []).forEach(r => {
+      const p = r.payload || {};
+      const status = r.voided ? 'Voided' : r.verified ? 'Verified' : r.rejected ? 'Rejected' : 'Pending';
+      rows.push([
+        new Date(r.created_at).toLocaleString('en-GB'),
+        s.app === 'ss' ? 'FP10SS' : 'FP10HNC',
+        s.cost_centre || '—',
+        s.generated_by || '—',
+        String(p.first ?? '—'),
+        String(p.last ?? '—'),
+        status,
+        r.verified ? (r.verified_by_name || '—') : (r.rejected ? (r.rejected_by_name || '—') : '—'),
+      ]);
+    });
+  });
+
+  pdf.autoTable({
+    startY: 27,
+    head: [['Date', 'App', 'Cost Centre', 'Generated By', 'First', 'Last', 'Status', 'Checked/Rejected By']],
+    body: rows,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [27, 58, 107] },
+  });
+
+  pdf.save(`fp10-verification-report-${Date.now()}.pdf`);
+}
+
+function showErrorStandalone(msg) {
+  const box = document.getElementById('alertBox');
+  if (!box) { alert(msg); return; }
+  box.textContent = msg;
+  box.classList.add('show');
+  setTimeout(() => box.classList.remove('show'), 6000);
+}
+function showSuccessStandalone(msg) {
+  const box = document.getElementById('successBox');
+  if (!box) return;
+  box.textContent = msg;
+  box.classList.add('show');
+  setTimeout(() => box.classList.remove('show'), 4000);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>

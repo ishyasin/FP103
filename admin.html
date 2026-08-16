@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin — FP10 Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+
+  :root {
+    --navy: #1b3a6b;
+    --navy-dark: #122d56;
+    --magenta: #e8176e;
+    --magenta-dark: #c4115c;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #d0d5dd;
+    --text: #1a1f36;
+    --text-muted: #5a6278;
+    --text-hint: #9aa0b4;
+    --green: #00843d;
+    --green-pale: #d4edda;
+    --green-pale-text: #155724;
+    --red: #c0003c;
+    --red-pale: #f8d7da;
+    --red-pale-text: #721c24;
+    --shadow: 0 2px 6px rgba(27,58,107,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Fira Sans', Arial, sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--navy);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .gdg-text-logo{display:flex;align-items:baseline;gap:6px;line-height:1;}
+  .gdg-text-logo-main{font-size:17px;font-weight:700;color:#fff;}
+  .gdg-text-logo-sub{font-size:12px;font-weight:400;color:rgba(255,255,255,0.65);}
+  .header-actions{display:flex;align-items:center;gap:8px;}
+  .btn-header{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:7px 14px;border-radius:5px;font-size:0.85em;font-weight:600;cursor:pointer;}
+  .btn-header:hover{background:rgba(255,255,255,0.1);}
+
+  main{max-width:1150px;margin:0 auto;padding:32px 24px 60px;}
+  h1{font-size:1.5em;color:var(--navy);margin-bottom:4px;}
+  .subtitle{color:var(--text-muted);font-size:0.9em;margin-bottom:28px;}
+
+  .card{background:#fff;border-radius:8px;padding:24px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,0.08);border:1px solid var(--border);}
+  .card h2{font-size:1.05em;color:var(--navy);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  .form-group.full{grid-column:1 / -1;}
+  label{font-size:0.8em;font-weight:600;color:var(--text-muted);}
+  input, select{padding:10px 12px;border:1px solid #d0d5dd;border-radius:6px;font-size:0.92em;font-family:inherit;}
+  input:focus, select:focus{outline:none;border-color:var(--magenta);box-shadow:0 0 0 3px rgba(232,23,110,0.1);}
+
+  button.btn-primary{background:var(--magenta);color:#fff;border:none;padding:11px 20px;border-radius:6px;font-weight:700;font-size:0.9em;cursor:pointer;}
+  button.btn-primary:hover:not(:disabled){background:var(--magenta-dark);}
+  button.btn-primary:disabled{opacity:0.6;cursor:not-allowed;}
+
+  table{width:100%;border-collapse:collapse;font-size:0.86em;}
+  th{text-align:left;padding:9px 8px;color:var(--text-muted);font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.03em;border-bottom:2px solid var(--border);}
+  td{padding:9px 8px;border-bottom:1px solid #eef0f4;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr.voided td{opacity:0.5;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:0.78em;font-weight:700;}
+  .badge-active{background:var(--green-pale);color:var(--green-pale-text);}
+  .badge-suspended{background:var(--red-pale);color:var(--red-pale-text);}
+  .badge-role{background:#e3e9f7;color:var(--navy);margin-left:6px;}
+  .badge-pending{background:#fff3cd;color:#8a6416;}
+  .badge-verified{background:var(--green-pale);color:var(--green-pale-text);}
+  .badge-voided{background:var(--red-pale);color:var(--red-pale-text);}
+
+  /* Glowing status dot + toggle, used instead of separate Approve/Suspend buttons */
+  .status-toggle{display:inline-flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:5px;font-size:0.85em;font-weight:600;font-family:inherit;}
+  .status-toggle:hover{background:var(--bg);}
+  .status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .status-dot.on{background:#2ecc71;box-shadow:0 0 6px 2px rgba(46,204,113,0.6);animation:dotPulse 1.8s ease-in-out infinite;}
+  .status-dot.off{background:#e74c3c;box-shadow:0 0 6px 2px rgba(231,76,60,0.5);}
+  @keyframes dotPulse{0%,100%{opacity:1;}50%{opacity:0.55;}}
+  .status-label.on{color:var(--green-pale-text);}
+  .status-label.off{color:var(--red-pale-text);}
+
+  .btn-small{padding:6px 12px;border-radius:5px;font-size:0.8em;font-weight:600;cursor:pointer;border:1px solid #d0d5dd;background:#fff;color:var(--navy);}
+  .btn-small:hover{background:var(--bg);}
+  .btn-small.danger{border-color:#eeb4bb;color:var(--red-pale-text);background:#fff5f5;}
+  .btn-small.danger:hover{background:#fce8e9;}
+
+  .btn-toggle{padding:6px 12px;border-radius:5px;font-size:0.82em;font-weight:600;cursor:pointer;border:1px solid transparent;}
+  .btn-toggle.approve{background:var(--green-pale);color:var(--green-pale-text);border-color:#a8e0b8;}
+  .btn-toggle.approve:hover{background:#bdeecb;}
+  .btn-toggle.suspend{background:var(--red-pale);color:var(--red-pale-text);border-color:#eeb4bb;}
+  .btn-toggle.suspend:hover{background:#f3c1c7;}
+
+  .logo-upload-cell{display:flex;align-items:center;gap:8px;}
+  .logo-upload-cell input[type=file]{font-size:0.78em;max-width:170px;}
+
+  .error{background:var(--red-pale);color:#721c24;padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
+  .error.show{display:block;}
+  .success{background:var(--green-pale);color:var(--green-pale-text);padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
+  .success.show{display:block;}
+
+  .empty-state{color:#8a91a3;font-size:0.9em;padding:20px;text-align:center;}
+  .not-authorised{max-width:480px;margin:80px auto;text-align:center;color:var(--text-muted);}
+
+  select#userTrustSelect:disabled, select#userTrustSelect[readonly]{background:var(--bg);color:#8a91a3;}
+
+  /* ── Tab navigation ── */
+  .tab-nav{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:28px;overflow-x:auto;}
+  .tab-btn{background:none;border:none;padding:12px 18px;font-family:inherit;font-size:0.9em;font-weight:700;color:var(--text-muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color 0.15s;}
+  .tab-btn:hover{color:var(--navy);}
+  .tab-btn.active{color:var(--magenta);border-bottom-color:var(--magenta);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;animation:tabFadeIn 0.2s ease;}
+  @keyframes tabFadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ── Stat cards ── */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;margin-bottom:28px;}
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--stat-accent, var(--navy));}
+  .stat-card .stat-value{font-size:2.1em;font-weight:800;color:var(--navy);line-height:1;margin-bottom:6px;}
+  .stat-card .stat-label{font-size:0.78em;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;}
+  .stat-card--attention .stat-value{color:var(--magenta);}
+  .stat-card--attention{--stat-accent:var(--magenta);}
+  .stat-card--warn .stat-value{color:#8a6416;}
+  .stat-card--warn{--stat-accent:#f0b429;}
+
+  .quick-links{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .quick-link{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-size:0.86em;font-weight:600;color:var(--navy);cursor:pointer;text-align:left;flex:1;min-width:180px;transition:border-color 0.15s, transform 0.1s;}
+  .quick-link:hover{border-color:var(--magenta);transform:translateY(-1px);}
+  .quick-link .ql-count{display:block;font-size:1.6em;font-weight:800;color:var(--magenta);margin-top:4px;}
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:4px;height:32px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+    <div class="gdg-text-logo">
+      <span class="gdg-text-logo-main">GD&amp;G</span><span class="gdg-text-logo-sub">Special Projects™ — Admin</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-header" onclick="window.location.href='index.html'">Back to app</button>
+    <button class="btn-header" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div class="empty-state">Loading…</div>
+</main>
+
+<script>
+let ME = null;
+
+async function init() {
+  const session = await requireSession();
+  if (!session) return;
+
+  ME = await getMyProfile();
+  const main = document.getElementById('mainContent');
+
+  if (!ME || !ME.isAdmin) {
+    main.innerHTML = `
+      <div class="not-authorised">
+        <h1 style="margin-bottom:10px;">Not authorised</h1>
+        <p>This page is only available to admin accounts.</p>
+      </div>`;
+    return;
+  }
+
+  render();
+}
+
+function render() {
+  const main = document.getElementById('mainContent');
+  const CAN_MANAGE_RESOURCES = ME.isSuperuser || ME.isTrustSuperuser;
+  const roleTitle = ME.isSuperuser ? 'Developer Admin' : ME.isTrustSuperuser ? 'Superuser Admin' : 'Trust Admin';
+  const roleSubtitle = ME.isSuperuser
+    ? 'Create trusts, create users of any role in any trust — including Superusers — and approve or suspend any account.'
+    : ME.isTrustSuperuser
+    ? 'Everything within your own trust: sites, users of any role except another Superuser, and the full audit log.'
+    : 'Create and approve or suspend users within your own trust.';
+
+  main.innerHTML = `
+    <h1>${roleTitle}</h1>
+    <p class="subtitle">${roleSubtitle}</p>
+
+    <div id="alertBox" class="error"></div>
+    <div id="successBox" class="success"></div>
+
+    <div class="tab-nav" id="tabNav">
+      <button class="tab-btn" data-tab="overview">Overview</button>
+      ${ME.isSuperuser ? `<button class="tab-btn" data-tab="trusts">Trusts</button>` : ''}
+      ${CAN_MANAGE_RESOURCES ? `<button class="tab-btn" data-tab="sites">Sites</button>` : ''}
+      <button class="tab-btn" data-tab="users">Users</button>
+      <button class="tab-btn" data-tab="audit">Audit Log</button>
+      ${CAN_MANAGE_RESOURCES ? `<button class="tab-btn" data-tab="export">Export &amp; Clear</button>` : ''}
+    </div>
+
+    <div class="tab-panel" data-tab="overview">
+      <div class="stat-grid" id="statGrid">
+        ${ME.isSuperuser ? statCardHtml('trusts', '—', 'Trusts') : ''}
+        ${statCardHtml('activeUsers', '—', 'Active Users')}
+        ${statCardHtml('pendingApproval', '—', 'Awaiting Approval', 'warn')}
+        ${statCardHtml('awaitingCheck', '—', 'Awaiting Verification')}
+        ${statCardHtml('needsCorrection', '—', 'Needs Correction', 'attention')}
+      </div>
+      <div class="quick-links">
+        <button class="quick-link" data-goto-tab="users">Create or manage a user →</button>
+        <button class="quick-link" data-goto-tab="audit">Review the audit log →</button>
+        ${ME.isSuperuser ? `<button class="quick-link" data-goto-tab="trusts">Manage trusts →</button>` : ''}
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab="trusts">
+      ${ME.isSuperuser ? `
+      <div class="card">
+        <h2>Create a Trust</h2>
+        <form id="createTrustForm">
+          <div class="form-grid">
+            <div class="form-group full">
+              <label for="trustName">Trust name</label>
+              <input type="text" id="trustName" placeholder="e.g. University Hospitals Sussex NHS Foundation Trust" required />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Create Trust</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Trusts</h2>
+        <div id="trustsList"><div class="empty-state">Loading…</div></div>
+      </div>
+      ` : ''}
+    </div>
+
+    <div class="tab-panel" data-tab="sites">
+      ${ME.isTrustSuperuser ? `
+      <div class="card">
+        <h2>Checking Turnaround Target</h2>
+        <p style="color:var(--text-muted);font-size:0.87em;margin-bottom:14px;">How long a submitted FP10 has before its progress bar on the Final Check page turns red. Default is 2 hours.</p>
+        <div id="myTurnaroundEditor">Loading…</div>
+      </div>
+      ` : ''}
+      ${CAN_MANAGE_RESOURCES ? `
+      <div class="card">
+        <h2>Create a Site</h2>
+        <p style="color:var(--text-muted);font-size:0.87em;margin-bottom:16px;">A site is a physical hospital within a trust — e.g. Worthing, St Richard's. Assistants, Technicians, and Pharmacists can be restricted to specific sites so they only see FP10s from where they actually work.</p>
+        <form id="createSiteForm">
+          <div class="form-grid">
+            ${ME.isSuperuser ? `
+            <div class="form-group">
+              <label for="siteTrustSelect">Trust</label>
+              <select id="siteTrustSelect" required></select>
+            </div>
+            ` : ''}
+            <div class="form-group">
+              <label for="siteName">Site name</label>
+              <input type="text" id="siteName" placeholder="e.g. Worthing Hospital" required />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Create Site</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Sites</h2>
+        ${ME.isSuperuser ? `
+        <div class="form-group" style="max-width:320px;margin-bottom:14px;">
+          <label for="sitesFilterTrustSelect">Trust</label>
+          <select id="sitesFilterTrustSelect"></select>
+        </div>` : ''}
+        <div id="sitesList"><div class="empty-state">${ME.isSuperuser ? 'Select a trust above.' : 'Loading…'}</div></div>
+      </div>
+      ` : ''}
+    </div>
+
+    <div class="tab-panel" data-tab="users">
+      <div class="card">
+        <h2>Create a User</h2>
+        <form id="createUserForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="userFirstName">First name</label>
+              <input type="text" id="userFirstName" required />
+            </div>
+            <div class="form-group">
+              <label for="userLastName">Last name</label>
+              <input type="text" id="userLastName" required />
+            </div>
+            <div class="form-group">
+              <label for="userIdInput">User ID (what they log in with)</label>
+              <input type="text" id="userIdInput" placeholder="e.g. JSMITH1" required />
+            </div>
+            <div class="form-group">
+              <label for="userPasscode">Passcode (min 6 characters)</label>
+              <input type="password" id="userPasscode" minlength="6" required />
+            </div>
+            ${ME.isSuperuser ? `
+            <div class="form-group">
+              <label for="userTrustSelect">Trust</label>
+              <select id="userTrustSelect" required></select>
+            </div>
+            <div class="form-group">
+              <label for="userRoleSelect">Role</label>
+              <select id="userRoleSelect">
+                <option value="user">Pharmacy Assistant</option>
+                <option value="verifier">Pharmacy Technician</option>
+                <option value="pharmacist">Pharmacist</option>
+                <option value="auditor">Governance</option>
+                <option value="admin">Trust Admin</option>
+                <option value="trust_superuser">Superuser</option>
+              </select>
+            </div>
+            ` : ME.isTrustSuperuser ? `
+            <div class="form-group">
+              <label for="userRoleSelect">Role</label>
+              <select id="userRoleSelect">
+                <option value="user">Pharmacy Assistant</option>
+                <option value="verifier">Pharmacy Technician</option>
+                <option value="pharmacist">Pharmacist</option>
+                <option value="auditor">Governance</option>
+                <option value="admin">Trust Admin</option>
+              </select>
+            </div>
+            ` : `
+            <div class="form-group">
+              <label for="userRoleSelect">Role</label>
+              <select id="userRoleSelect">
+                <option value="user">Pharmacy Assistant</option>
+                <option value="verifier">Pharmacy Technician</option>
+                <option value="pharmacist">Pharmacist</option>
+              </select>
+            </div>
+            `}
+          </div>
+          <button type="submit" class="btn-primary">Create User (starts suspended — approve below)</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>${ME.isSuperuser ? 'All Users' : 'Users in Your Trust'}</h2>
+        ${ME.isSuperuser ? `
+        <div class="form-group" style="max-width:320px;margin-bottom:14px;">
+          <label for="filterTrustSelect">Filter by trust</label>
+          <select id="filterTrustSelect"><option value="">All trusts</option></select>
+        </div>` : ''}
+        <div id="usersList"><div class="empty-state">Loading…</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab="audit">
+      <div class="card">
+        <h2>Locked Sessions</h2>
+        <p style="color:var(--text-muted);font-size:0.87em;margin-bottom:14px;">Sessions a Technician has started checking but not finished. Unlock one if that Technician is unavailable (off sick, etc.) so someone else can pick it up — any already-verified registers in it reset back to pending so the new checker reviews everything fresh.</p>
+        <div id="lockedSessionsList"><div class="empty-state">Loading…</div></div>
+      </div>
+      <div class="card">
+        <h2>Audit Log</h2>
+        <p style="color:var(--text-muted);font-size:0.87em;margin-bottom:14px;">Every generated document. Voiding keeps the entry visible — it's never deleted — and requires a reason.</p>
+        <div id="auditLogList"><div class="empty-state">Loading…</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-tab="export">
+      ${CAN_MANAGE_RESOURCES ? `
+      <div class="card">
+        <h2>Export &amp; Clear Logs</h2>
+        <p style="color:var(--text-muted);font-size:0.87em;margin-bottom:16px;line-height:1.5;">
+          Download every generated-document entry for a trust as a CSV (no limit — the full history),
+          then optionally clear entries older than a date once you've saved that copy off. Clearing is
+          a genuine, permanent delete — unlike voiding, it does not keep a visible record. Only ever
+          clear what you've already exported.
+        </p>
+        <div class="form-grid">
+          ${ME.isSuperuser ? `
+          <div class="form-group">
+            <label for="exportTrustSelect">Trust</label>
+            <select id="exportTrustSelect"></select>
+          </div>
+          ` : ''}
+          <div class="form-group">
+            <label for="clearBeforeDate">Clear entries created before</label>
+            <input type="date" id="clearBeforeDate" />
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:6px;">
+          <button type="button" class="btn-primary" id="exportLogsBtn">Download CSV</button>
+          <button type="button" class="btn-toggle suspend" id="clearLogsBtn">Clear Logs Before Date</button>
+        </div>
+      </div>
+      ` : ''}
+    </div>
+  `;
+
+  document.getElementById('createUserForm').addEventListener('submit', onCreateUser);
+  if (ME.isSuperuser) {
+    document.getElementById('createTrustForm').addEventListener('submit', onCreateTrust);
+    document.getElementById('filterTrustSelect').addEventListener('change', (e) => loadUsers(e.target.value));
+    document.getElementById('sitesFilterTrustSelect').addEventListener('change', (e) => loadSites(e.target.value));
+    loadTrustsIntoSelects();
+    loadTrusts();
+  }
+  if (ME.isSuperuser || ME.isTrustSuperuser) {
+    document.getElementById('exportLogsBtn').addEventListener('click', onExportLogs);
+    document.getElementById('clearLogsBtn').addEventListener('click', onClearLogs);
+    document.getElementById('createSiteForm').addEventListener('submit', onCreateSite);
+    if (ME.isTrustSuperuser) { loadSites(ME.trust_id); loadMyTurnaround(); } // own trust only — no selector to trigger it
+  }
+  loadUsers();
+  loadAuditLog();
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+  document.querySelectorAll('[data-goto-tab]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.gotoTab));
+  });
+  switchTab('overview');
+}
+
+function statCardHtml(id, value, label, variant) {
+  return `<div class="stat-card ${variant ? `stat-card--${variant}` : ''}" id="stat-${id}">
+    <div class="stat-value">${value}</div>
+    <div class="stat-label">${label}</div>
+  </div>`;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
+}
+
+function updateStat(id, value) {
+  const el = document.getElementById(`stat-${id}`);
+  if (el) el.querySelector('.stat-value').textContent = value;
+}
+
+function showError(msg) {
+  const box = document.getElementById('alertBox');
+  box.textContent = msg;
+  box.classList.add('show');
+  document.getElementById('successBox').classList.remove('show');
+  setTimeout(() => box.classList.remove('show'), 6000);
+}
+
+function showSuccess(msg) {
+  const box = document.getElementById('successBox');
+  box.textContent = msg;
+  box.classList.add('show');
+  document.getElementById('alertBox').classList.remove('show');
+  setTimeout(() => box.classList.remove('show'), 6000);
+}
+
+async function loadTrustsIntoSelects() {
+  try {
+    const { trusts } = await callAdminUsers('list-trusts', {});
+    const options = trusts.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+    const userTrustSelect = document.getElementById('userTrustSelect');
+    const filterTrustSelect = document.getElementById('filterTrustSelect');
+    const exportTrustSelect = document.getElementById('exportTrustSelect');
+    const siteTrustSelect = document.getElementById('siteTrustSelect');
+    const sitesFilterTrustSelect = document.getElementById('sitesFilterTrustSelect');
+    if (userTrustSelect) userTrustSelect.innerHTML = options || '<option value="">No trusts yet — create one above</option>';
+    if (filterTrustSelect) filterTrustSelect.insertAdjacentHTML('beforeend', options);
+    if (exportTrustSelect) exportTrustSelect.innerHTML = options || '<option value="">No trusts yet</option>';
+    if (siteTrustSelect) siteTrustSelect.innerHTML = options || '<option value="">No trusts yet — create one first</option>';
+    if (sitesFilterTrustSelect) {
+      sitesFilterTrustSelect.innerHTML = options || '<option value="">No trusts yet</option>';
+      if (trusts.length) loadSites(trusts[0].id);
+    }
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function loadSites(trustId) {
+  const container = document.getElementById('sitesList');
+  if (!trustId) { container.innerHTML = '<div class="empty-state">Select a trust above.</div>'; return; }
+  container.innerHTML = '<div class="empty-state">Loading…</div>';
+  try {
+    const { sites } = await callAdminUsers('list-sites', { trust_id: trustId });
+    if (!sites.length) {
+      container.innerHTML = '<div class="empty-state">No sites yet for this trust — create one above.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th></th></tr></thead>
+        <tbody>
+          ${sites.map(s => `
+            <tr>
+              <td>${escapeHtml(s.name)}</td>
+              <td><button class="btn-small danger" data-delete-site-id="${s.id}" data-delete-site-name="${escapeHtml(s.name)}">Delete</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+    container.querySelectorAll('[data-delete-site-id]').forEach(btn => {
+      btn.addEventListener('click', () => onDeleteSite(btn.dataset.deleteSiteId, btn.dataset.deleteSiteName, trustId));
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Couldn't load sites.</div>`;
+    showError(err.message);
+  }
+}
+
+async function onCreateSite(e) {
+  e.preventDefault();
+  const trustSelect = document.getElementById('siteTrustSelect');
+  const trustId = trustSelect ? trustSelect.value : ME.trust_id;
+  const name = document.getElementById('siteName').value.trim();
+  if (!trustId) { showError('Select a trust first.'); return; }
+  try {
+    await callAdminUsers('create-site', { trust_id: trustId, name });
+    showSuccess(`Site "${name}" created.`);
+    document.getElementById('siteName').value = '';
+    const filterSelect = document.getElementById('sitesFilterTrustSelect');
+    if (filterSelect) filterSelect.value = trustId;
+    loadSites(trustId);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onDeleteSite(id, name, trustId) {
+  if (!confirm(`Delete "${name}"?\n\nThis only works if no FP10 sessions have been logged against it. This cannot be undone.`)) return;
+  try {
+    await callAdminUsers('delete-site', { id });
+    showSuccess(`"${name}" deleted.`);
+    loadSites(trustId);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function loadMyTurnaround() {
+  const container = document.getElementById('myTurnaroundEditor');
+  if (!container) return;
+  try {
+    const trust = await getMyTrust();
+    const minutes = trust?.turnaround_target_minutes ?? 120;
+    container.innerHTML = turnaroundEditorHtml(ME.trust_id, minutes);
+    document.querySelectorAll('[data-save-turnaround-id]').forEach(btn => {
+      btn.addEventListener('click', () => onSaveTurnaround(btn.dataset.saveTurnaroundId));
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Couldn't load.</div>`;
+  }
+}
+
+function turnaroundEditorHtml(trustId, minutes) {
+  const hours = (minutes / 60).toFixed(1).replace(/\.0$/, '');
+  return `
+    <div style="display:flex;align-items:center;gap:6px;">
+      <input type="number" min="5" max="10080" value="${minutes}" id="turnaround-${trustId}" style="width:80px;padding:6px 8px;font-size:0.85em;" />
+      <span style="color:var(--text-muted);font-size:0.78em;">min (${hours}h)</span>
+      <button class="btn-small" data-save-turnaround-id="${trustId}">Save</button>
+    </div>`;
+}
+
+async function onSaveTurnaround(trustId) {
+  const input = document.getElementById(`turnaround-${trustId}`);
+  const minutes = parseInt(input.value);
+  if (!minutes || minutes < 5 || minutes > 10080) { showError('Turnaround target must be between 5 minutes and 7 days.'); return; }
+  try {
+    await callAdminUsers('set-trust-turnaround', { trust_id: trustId, minutes });
+    showSuccess('Turnaround target updated.');
+    if (ME.isSuperuser) loadTrusts();
+    if (ME.isTrustSuperuser) loadMyTurnaround();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+function lastExportHtml(lastExportAt) {
+  if (!lastExportAt) {
+    return `<span style="color:var(--red-pale-text);font-weight:600;">Never downloaded</span>`;
+  }
+  const days = Math.floor((Date.now() - new Date(lastExportAt).getTime()) / (1000 * 60 * 60 * 24));
+  const dateStr = new Date(lastExportAt).toLocaleDateString('en-GB');
+  let color = 'var(--green-pale-text)';
+  if (days > 60) color = 'var(--red-pale-text)';
+  else if (days > 30) color = '#8a6416';
+  const daysLabel = days === 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
+  return `<span style="color:${color};font-weight:600;">${daysLabel}</span><div style="color:var(--text-hint);font-size:0.78em;">${dateStr}</div>`;
+}
+
+async function loadTrusts() {
+  const container = document.getElementById('trustsList');
+  try {
+    const { trusts } = await callAdminUsers('list-trusts', {});
+    updateStat('trusts', trusts.length);
+    if (!trusts.length) {
+      container.innerHTML = '<div class="empty-state">No trusts yet — create one above.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Logo</th><th>Last Downloaded</th><th>Turnaround Target</th><th></th></tr></thead>
+        <tbody>
+          ${trusts.map(t => `
+            <tr>
+              <td>${escapeHtml(t.name)}</td>
+              <td>
+                <div class="logo-upload-cell">
+                  <span>${t.logo_path ? '✅ set' : '— none yet'}</span>
+                  <input type="file" accept="image/png" data-logo-trust-id="${t.id}" />
+                </div>
+              </td>
+              <td>${lastExportHtml(t.last_export_at)}</td>
+              <td>${turnaroundEditorHtml(t.id, t.turnaround_target_minutes)}</td>
+              <td><button class="btn-small danger" data-delete-trust-id="${t.id}" data-delete-trust-name="${escapeHtml(t.name)}">Delete</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    container.querySelectorAll('[data-save-turnaround-id]').forEach(btn => {
+      btn.addEventListener('click', () => onSaveTurnaround(btn.dataset.saveTurnaroundId));
+    });
+    container.querySelectorAll('[data-logo-trust-id]').forEach(input => {
+      input.addEventListener('change', () => onUploadLogo(input));
+    });
+    container.querySelectorAll('[data-delete-trust-id]').forEach(btn => {
+      btn.addEventListener('click', () => onDeleteTrust(btn.dataset.deleteTrustId, btn.dataset.deleteTrustName));
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Couldn't load trusts.</div>`;
+    showError(err.message);
+  }
+}
+
+async function onDeleteTrust(id, name) {
+  if (!confirm(`Permanently delete "${name}"?\n\nThis only works if it has no users and no log entries left — delete/reassign users and export+clear logs first if needed. This cannot be undone.`)) return;
+
+  const passcode = prompt('Confirm your own passcode to proceed with deletion:');
+  if (passcode === null) return;
+
+  try {
+    await confirmMyPassword(passcode);
+    await callAdminUsers('delete-trust', { id });
+    showSuccess(`"${name}" deleted.`);
+    loadTrustsIntoSelects();
+    loadTrusts();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onUploadLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const trustId = input.dataset.logoTrustId;
+
+  if (file.type !== 'image/png') {
+    showError('Logo must be a PNG file.');
+    input.value = '';
+    return;
+  }
+
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    await callAdminUsers('upload-trust-logo', { trust_id: trustId, file_base64: base64 });
+    showSuccess('Logo uploaded.');
+    loadTrusts();
+  } catch (err) {
+    showError(err.message);
+    input.value = '';
+  }
+}
+
+async function loadUsers(trustId) {
+  const container = document.getElementById('usersList');
+  container.innerHTML = '<div class="empty-state">Loading…</div>';
+  try {
+    const { users } = await callAdminUsers('list-users', trustId ? { trust_id: trustId } : {});
+    if (!trustId) {
+      updateStat('activeUsers', users.filter(u => u.active).length);
+      updateStat('pendingApproval', users.filter(u => !u.active).length);
+    }
+    if (!users.length) {
+      container.innerHTML = '<div class="empty-state">No users yet.</div>';
+      return;
+    }
+    USERS_BY_ID = {};
+    users.forEach(u => { USERS_BY_ID[u.id] = u; });
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>User ID</th><th>Role</th><th>Status</th><th>Sites</th><th></th><th></th></tr></thead>
+        <tbody>
+          ${users.map(u => `
+            <tr>
+              <td>${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || '—')}</td>
+              <td>${escapeHtml(u.user_id || '—')}</td>
+              <td><span class="badge badge-role">${escapeHtml(roleDisplayName(u.role))}</span></td>
+              <td>${renderStatusToggle(u)}</td>
+              <td>${sitesCellHtml(u)}</td>
+              <td>${renderResetButton(u)}</td>
+              <td>${renderDeleteUserButton(u)}</td>
+            </tr>
+            <tr id="sites-edit-row-${u.id}" style="display:none;">
+              <td colspan="7" style="padding:12px 8px;background:var(--bg);"><div id="sites-edit-${u.id}"></div></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    container.querySelectorAll('[data-toggle-id]').forEach(btn => {
+      btn.addEventListener('click', () => onToggleActive(btn.dataset.toggleId, btn.dataset.toggleTo === 'true', trustId));
+    });
+    container.querySelectorAll('[data-reset-id]').forEach(btn => {
+      btn.addEventListener('click', () => onResetPassword(btn.dataset.resetId, trustId));
+    });
+    container.querySelectorAll('[data-delete-user-id]').forEach(btn => {
+      btn.addEventListener('click', () => onDeleteUser(btn.dataset.deleteUserId, btn.dataset.deleteUserName, trustId));
+    });
+    container.querySelectorAll('[data-edit-sites-id]').forEach(btn => {
+      btn.addEventListener('click', () => toggleSitesEditor(btn.dataset.editSitesId, btn.dataset.editSitesTrust, trustId));
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Couldn't load users.</div>`;
+    showError(err.message);
+  }
+}
+
+let USERS_BY_ID = {};
+let MY_GRANTABLE_SITES = null; // cached for trust-admins: sites they can grant to others
+
+function sitesCellHtml(u) {
+  const editable = canActOn(u);
+  const chips = u.sites && u.sites.length
+    ? u.sites.map(s => `<span class="badge" style="background:#e3e9f7;color:var(--navy);margin-right:4px;">${escapeHtml(s.name)}</span>`).join('')
+    : `<span style="color:var(--text-hint);font-style:italic;">All sites</span>`;
+  return `<div>${chips}</div>${editable ? `<button class="btn-small" data-edit-sites-id="${u.id}" data-edit-sites-trust="${u.trust_id}" style="margin-top:4px;">Edit sites</button>` : ''}`;
+}
+
+async function toggleSitesEditor(userId, userTrustId, filterTrustId) {
+  const row = document.getElementById(`sites-edit-row-${userId}`);
+  const container = document.getElementById(`sites-edit-${userId}`);
+  if (row.style.display !== 'none') { row.style.display = 'none'; return; }
+
+  row.style.display = 'table-row';
+  container.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  try {
+    // Superuser sees every site in that user's trust. A Trust Admin can
+    // only grant sites they themselves have access to.
+    let grantableSites;
+    if (ME.isSuperuser) {
+      const { sites } = await callAdminUsers('list-sites', { trust_id: userTrustId });
+      grantableSites = sites;
+    } else {
+      if (!MY_GRANTABLE_SITES) {
+        const { sites } = await callAdminUsers('list-my-sites', {});
+        MY_GRANTABLE_SITES = sites;
+      }
+      grantableSites = MY_GRANTABLE_SITES;
+    }
+
+    const u = USERS_BY_ID[userId];
+    const currentSiteIds = new Set((u?.sites || []).map(s => s.id));
+
+    if (!grantableSites.length) {
+      container.innerHTML = `<div class="empty-state">${ME.isSuperuser ? 'No sites exist for this trust yet.' : "You don't have access to any specific sites yourself, so there's nothing to assign."}</div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
+        ${grantableSites.map(s => `
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;font-weight:500;cursor:pointer;">
+            <input type="checkbox" value="${s.id}" ${currentSiteIds.has(s.id) ? 'checked' : ''} />
+            ${escapeHtml(s.name)}
+          </label>
+        `).join('')}
+      </div>
+      <p style="color:var(--text-muted);font-size:0.8em;margin-bottom:10px;">Leave everything unticked to give this account access to every site (unrestricted).</p>
+      <button class="btn-primary" id="save-sites-${userId}" style="padding:8px 16px;font-size:0.85em;">Save</button>
+    `;
+
+    document.getElementById(`save-sites-${userId}`).addEventListener('click', async () => {
+      const siteIds = [...container.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value);
+      try {
+        await callAdminUsers('set-user-site-access', { user_id: userId, site_ids: siteIds });
+        showSuccess('Site access updated.');
+        loadUsers(filterTrustId);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Couldn't load sites.</div>`;
+    showError(err.message);
+  }
+}
+
+function isSelf(u) {
+  return u.id === ME.id;
+}
+
+function canActOn(u) {
+  // Never allow acting on your own row — nobody can suspend or delete
+  // themselves. Developer: anyone. Superuser: anyone in their own trust
+  // except another Developer. Trust Admin: ordinary users, Pharmacy
+  // Technicians, and Pharmacists in their own trust only. The Edge
+  // Function enforces all of this too — this just avoids showing
+  // controls that would immediately fail.
+  if (isSelf(u)) return false;
+  if (ME.isSuperuser) return true;
+  if (ME.isTrustSuperuser) return u.role !== 'superuser';
+  return ['user', 'verifier', 'pharmacist'].includes(u.role);
+}
+
+function renderStatusToggle(u) {
+  if (isSelf(u)) {
+    return `<span class="status-dot on" style="display:inline-block;"></span> <span class="status-label on">Active (you)</span>`;
+  }
+  if (!canActOn(u)) {
+    return u.active
+      ? '<span class="status-dot on" style="display:inline-block;"></span> <span class="status-label on">Active</span>'
+      : '<span class="status-dot off" style="display:inline-block;"></span> <span class="status-label off">Suspended</span>';
+  }
+  const dotClass = u.active ? 'on' : 'off';
+  const label = u.active ? 'Active' : 'Suspended';
+  const toggleTo = !u.active;
+  return `
+    <button class="status-toggle" data-toggle-id="${u.id}" data-toggle-to="${toggleTo}" title="Click to ${toggleTo ? 'approve' : 'suspend'}">
+      <span class="status-dot ${dotClass}"></span>
+      <span class="status-label ${dotClass}">${label}</span>
+    </button>`;
+}
+
+function renderResetButton(u) {
+  if (!canActOn(u)) return '';
+  return `<button class="btn-small" data-reset-id="${u.id}">Reset passcode</button>`;
+}
+
+function renderDeleteUserButton(u) {
+  if (!canActOn(u)) return '';
+  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.user_id;
+  return `<button class="btn-small danger" data-delete-user-id="${u.id}" data-delete-user-name="${escapeHtml(name)}">Delete</button>`;
+}
+
+async function onToggleActive(id, active, trustId) {
+  try {
+    await callAdminUsers('set-active', { id, active });
+    showSuccess(active ? 'Account approved.' : 'Account suspended.');
+    loadUsers(trustId);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onDeleteUser(id, name, trustId) {
+  if (!confirm(`Permanently delete the account for ${name}?\n\nTheir past log entries are kept — only the login itself is removed. This cannot be undone.`)) return;
+
+  const passcode = prompt('Confirm your own passcode to proceed with deletion:');
+  if (passcode === null) return;
+
+  try {
+    await confirmMyPassword(passcode);
+    await callAdminUsers('delete-user', { id });
+    showSuccess(`${name}'s account deleted.`);
+    loadUsers(trustId);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onResetPassword(id, trustId) {
+  const newPasscode = prompt('Enter a new passcode for this account (min. 6 characters).\nThey will be required to set their own new passcode on next login.');
+  if (newPasscode === null) return; // cancelled
+  if (newPasscode.length < 6) { showError('Passcode must be at least 6 characters.'); return; }
+
+  try {
+    await callAdminUsers('reset-password', { id, new_passcode: newPasscode });
+    showSuccess('Passcode reset — they will be prompted to set a new one on next login.');
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function loadAuditLog() {
+  const container = document.getElementById('auditLogList');
+  const lockedContainer = document.getElementById('lockedSessionsList');
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', {});
+    const rows = [];
+    sessions.forEach(s => (s.register_log || []).forEach(r => rows.push({ s, r })));
+
+    updateStat('awaitingCheck', rows.filter(({ r }) => !r.verified && !r.rejected && !r.voided).length);
+    updateStat('needsCorrection', rows.filter(({ r }) => r.rejected && !r.voided && !r.verified).length);
+
+    // Sessions currently locked to a Technician with unfinished work —
+    // for when that Technician is unavailable and someone else needs to
+    // pick it up.
+    if (lockedContainer) {
+      const locked = sessions.filter(s => s.assigned_verifier && (s.register_log || []).some(r => !r.voided && (!r.verified || r.rejected)));
+      if (!locked.length) {
+        lockedContainer.innerHTML = '<div class="empty-state">Nothing currently locked.</div>';
+      } else {
+        lockedContainer.innerHTML = locked.map(s => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg);border-radius:6px;margin-bottom:8px;">
+            <div style="font-size:0.88em;">
+              <strong>${escapeHtml(s.cost_centre || '—')}</strong> — ${s.app === 'ss' ? 'FP10SS' : 'FP10HNC'} ·
+              locked to <strong>${escapeHtml(s.assigned_verifier_name || '—')}</strong>
+            </div>
+            <button class="btn-small danger" data-unlock-session-id="${s.id}">Unlock session</button>
+          </div>`).join('');
+        lockedContainer.querySelectorAll('[data-unlock-session-id]').forEach(btn => {
+          btn.addEventListener('click', () => onUnlockSession(btn.dataset.unlockSessionId));
+        });
+      }
+    }
+
+    if (!rows.length) {
+      container.innerHTML = '<div class="empty-state">No registers yet.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Date</th><th>App</th><th>Cost Centre</th><th>Generated By</th><th>First</th><th>Last</th><th>Total</th><th>Checked By</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(({ s, r }) => auditRowHtml(s, r)).join('')}
+        </tbody>
+      </table>`;
+
+    container.querySelectorAll('[data-void-id]').forEach(btn => {
+      btn.addEventListener('click', () => onVoidRegister(btn.dataset.voidId));
+    });
+    container.querySelectorAll('[data-reassign-id]').forEach(btn => {
+      btn.addEventListener('click', () => toggleReassignEditor(btn.dataset.reassignId, btn.dataset.reassignTrust));
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Couldn't load the audit log.</div>`;
+    showError(err.message);
+  }
+}
+
+async function onUnlockSession(sessionId) {
+  if (!confirm('Unlock this session? Any already-verified registers in it will be reset back to pending so a different Technician can check everything fresh.')) return;
+  try {
+    await callAdminUsers('unlock-session', { session_id: sessionId });
+    showSuccess('Session unlocked.');
+    loadAuditLog();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+let ELIGIBLE_STAFF_CACHE = null;
+
+async function toggleReassignEditor(registerId, trustId) {
+  const row = document.getElementById(`reassign-row-${registerId}`);
+  if (row) { row.remove(); return; }
+
+  try {
+    if (!ELIGIBLE_STAFF_CACHE) {
+      const { users } = await callAdminUsers('list-users', trustId ? { trust_id: trustId } : {});
+      ELIGIBLE_STAFF_CACHE = (users || []).filter(u => ['user', 'verifier', 'pharmacist'].includes(u.role) && u.active);
+    }
+    const anchorRow = document.querySelector(`[data-reassign-id="${registerId}"]`).closest('tr');
+    const tr = document.createElement('tr');
+    tr.id = `reassign-row-${registerId}`;
+    tr.innerHTML = `<td colspan="10" style="background:var(--bg);padding:12px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label style="font-size:0.85em;font-weight:600;">Reassign correction to:</label>
+        <select id="reassign-select-${registerId}" style="max-width:260px;">
+          ${ELIGIBLE_STAFF_CACHE.map(u => `<option value="${u.id}">${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || u.user_id)} (${roleDisplayName(u.role)})</option>`).join('')}
+        </select>
+        <button class="btn-primary" id="reassign-confirm-${registerId}" style="padding:7px 14px;font-size:0.85em;">Confirm</button>
+      </div>
+    </td>`;
+    anchorRow.after(tr);
+    document.getElementById(`reassign-confirm-${registerId}`).addEventListener('click', () => onReassignCorrection(registerId));
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onReassignCorrection(registerId) {
+  const select = document.getElementById(`reassign-select-${registerId}`);
+  const newUserId = select.value;
+  try {
+    await callAdminUsers('reassign-correction', { register_id: registerId, new_user_id: newUserId });
+    showSuccess(`Reassigned to ${select.selectedOptions[0].textContent}.`);
+    loadAuditLog();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+function auditRowHtml(s, r) {
+  const p = r.payload || {};
+  const date = new Date(r.created_at).toLocaleString('en-GB');
+  const appLabel = s.app === 'ss' ? 'FP10SS' : 'FP10HNC';
+  let statusBadge, actionCell;
+
+  const checkedBy = r.verified
+    ? `${escapeHtml(r.verified_by_name || '—')}<br><span style="color:#8a91a3;font-size:0.8em;">${escapeHtml(new Date(r.verified_at).toLocaleString('en-GB'))}</span>`
+    : '<span style="color:#8a91a3;">—</span>';
+
+  if (r.voided) {
+    statusBadge = `<span class="badge badge-voided">Voided</span>`;
+    actionCell = `<span style="color:#8a91a3;font-size:0.8em;" title="${escapeHtml(r.void_reason || '')}">reason: ${escapeHtml(r.void_reason || '—')}</span>`;
+  } else if (r.verified) {
+    statusBadge = '<span class="badge badge-verified">Verified</span>';
+    actionCell = `<button class="btn-small danger" data-void-id="${r.id}">Void</button>`;
+  } else if (r.rejected) {
+    statusBadge = `<span class="badge badge-voided" style="background:#f8d7da;color:#a01c2e;">Rejected</span>`;
+    const reassignNote = r.reassigned_to_name ? `<div style="color:#8a6416;font-size:0.78em;">→ reassigned to ${escapeHtml(r.reassigned_to_name)}</div>` : '';
+    actionCell = `<span style="color:#a01c2e;font-size:0.8em;" title="${escapeHtml(r.rejection_reason || '')}">reason: ${escapeHtml(r.rejection_reason || '—')}</span>${reassignNote}<button class="btn-small" data-reassign-id="${r.id}" data-reassign-trust="${s.trust_id}" style="margin-top:4px;">Reassign</button>`;
+  } else {
+    statusBadge = '<span class="badge badge-pending">Pending</span>';
+    actionCell = `<button class="btn-small danger" data-void-id="${r.id}">Void</button>`;
+  }
+
+  return `
+    <tr class="${r.voided ? 'voided' : ''}">
+      <td>${escapeHtml(date)}</td>
+      <td>${appLabel}</td>
+      <td>${escapeHtml(p.deptCode || s.cost_centre || '—')}</td>
+      <td>${escapeHtml(s.generated_by || '—')}</td>
+      <td>${escapeHtml(String(p.first ?? '—'))}</td>
+      <td>${escapeHtml(String(p.last ?? '—'))}</td>
+      <td>${escapeHtml(String(p.total ?? '—'))}</td>
+      <td>${checkedBy}</td>
+      <td>${statusBadge}</td>
+      <td>${actionCell}</td>
+    </tr>`;
+}
+
+async function onVoidRegister(id) {
+  const reason = prompt('Reason for voiding this register (required — it will be kept, just marked void):');
+  if (reason === null) return; // cancelled
+  if (!reason.trim()) { showError('A reason is required to void a register.'); return; }
+
+  try {
+    await callAdminUsers('void-register', { id, reason: reason.trim() });
+    showSuccess('Register voided.');
+    loadAuditLog();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onExportLogs() {
+  const trustSelect = document.getElementById('exportTrustSelect');
+  const trustId = trustSelect ? trustSelect.value : ME.trust_id;
+  if (!trustId) { showError('Select a trust first.'); return; }
+  const trustName = trustSelect ? (trustSelect.selectedOptions[0]?.textContent || 'trust') : 'your trust';
+
+  try {
+    const { sessions } = await callAdminUsers('export-log-entries', { trust_id: trustId });
+    if (!sessions.length) { showSuccess('No sessions to export for this trust.'); return; }
+
+    const headers = ['Session Submitted', 'App', 'Cost Centre', 'Generated By', 'Register Date', 'First Serial', 'Last Serial', 'Total', 'Session Status', 'Voided', 'Void Reason', 'Rejected By', 'Rejected At', 'Rejection Reason', 'Checked By', 'Checked At'];
+    const rows = [];
+    sessions.forEach(s => {
+      const registers = s.register_log && s.register_log.length ? s.register_log : [{ payload: {}, created_at: s.submitted_at }];
+      registers.forEach(r => {
+        const p = r.payload || {};
+        const status = r.voided ? 'Voided' : r.verified ? 'Verified' : r.rejected ? 'Rejected' : 'Pending';
+        rows.push([
+          new Date(s.submitted_at).toLocaleString('en-GB'),
+          s.app === 'ss' ? 'FP10SS' : 'FP10HNC',
+          s.cost_centre || '',
+          s.generated_by || '',
+          new Date(r.created_at).toLocaleString('en-GB'),
+          p.first ?? '',
+          p.last ?? '',
+          p.total ?? '',
+          status,
+          r.voided ? 'Yes' : 'No',
+          r.void_reason || '',
+          r.rejected ? (r.rejected_by_name || '') : '',
+          r.rejected ? new Date(r.rejected_at).toLocaleString('en-GB') : '',
+          r.rejected ? (r.rejection_reason || '') : '',
+          r.verified ? (r.verified_by_name || '') : '',
+          r.verified ? new Date(r.verified_at).toLocaleString('en-GB') : '',
+        ]);
+      });
+    });
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${trustName.replace(/[^a-z0-9]+/gi, '-')}-fp10-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showSuccess(`Exported ${sessions.length} session(s), ${rows.length} document(s).`);
+    if (ME.isSuperuser) loadTrusts();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onClearLogs() {
+  const trustSelect = document.getElementById('exportTrustSelect');
+  const trustId = trustSelect ? trustSelect.value : ME.trust_id;
+  const beforeDate = document.getElementById('clearBeforeDate').value;
+  if (!trustId) { showError('Select a trust first.'); return; }
+  if (!beforeDate) { showError('Choose a cutoff date first.'); return; }
+
+  const trustName = trustSelect ? (trustSelect.selectedOptions[0]?.textContent || 'this trust') : 'your trust';
+  const confirmed = confirm(
+    `This will PERMANENTLY delete every ${trustName} entry created before ${beforeDate}.\n\n` +
+    `Make sure you've downloaded a CSV export first — this cannot be undone.\n\nContinue?`
+  );
+  if (!confirmed) return;
+
+  try {
+    const { deleted } = await callAdminUsers('clear-log-entries', {
+      trust_id: trustId,
+      before_date: new Date(beforeDate + 'T00:00:00').toISOString(),
+    });
+    showSuccess(`Cleared ${deleted} entries.`);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onCreateTrust(e) {
+  e.preventDefault();
+  const name = document.getElementById('trustName').value.trim();
+  try {
+    await callAdminUsers('create-trust', { name });
+    showSuccess(`Trust "${name}" created.`);
+    document.getElementById('createTrustForm').reset();
+    loadTrustsIntoSelects();
+    loadTrusts();
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+async function onCreateUser(e) {
+  e.preventDefault();
+  const payload = {
+    first_name: document.getElementById('userFirstName').value.trim(),
+    last_name: document.getElementById('userLastName').value.trim(),
+    user_id: document.getElementById('userIdInput').value.trim(),
+    passcode: document.getElementById('userPasscode').value,
+  };
+  if (ME.isSuperuser) {
+    payload.trust_id = document.getElementById('userTrustSelect').value;
+  }
+  payload.role = document.getElementById('userRoleSelect').value;
+  try {
+    await callAdminUsers('create-user', payload);
+    showSuccess(`Account "${payload.user_id}" created — suspended until approved below.`);
+    document.getElementById('createUserForm').reset();
+    loadUsers(ME.isSuperuser ? document.getElementById('filterTrustSelect').value : undefined);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+function roleDisplayName(role) {
+  const names = {
+    user: 'Pharmacy Assistant',
+    verifier: 'Pharmacy Technician',
+    pharmacist: 'Pharmacist',
+    admin: 'Trust Admin',
+    superuser: 'Developer',
+    trust_superuser: 'Superuser',
+    auditor: 'Governance',
+  };
+  return names[role] || role;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>

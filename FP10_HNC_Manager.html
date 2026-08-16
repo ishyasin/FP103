@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FP10 Prescription Register - Session Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      /* UHS Sussex Staff Hub palette */
+      --navy: #1b3a6b;          /* deep navy — header, headings */
+      --navy-dark: #122d56;
+      --magenta: #e8176e;       /* magenta — primary action buttons, accents */
+      --magenta-dark: #c4115c;
+      --cyan: #2a52a0;          /* secondary blue accent */
+      --cyan-dark: #1557a0;
+
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --surface2: #f7f8fa;
+      --border: #d0d5dd;
+      --text: #1a1f36;
+      --text-muted: #5a6278;
+      --text-hint: #9aa0b4;
+
+      /* keep semantic colours for alerts/states */
+      --blue: var(--navy);
+      --blue-dark: var(--navy-dark);
+      --blue-pale: #dce8f7;
+      --blue-pale-text: #1b3a6b;
+      --green: #00843d;
+      --green-dark: #006830;
+      --green-pale: #d4edda;
+      --green-pale-text: #155724;
+      --red: #c0003c;
+      --red-dark: #99002f;
+      --gray: #5a6278;
+      --gray-dark: #444b60;
+      --nhs-blue: #1b3a6b;
+      --shadow: 0 2px 6px rgba(27,58,107,0.10);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111827;
+        --surface: #1e2433;
+        --surface2: #262e40;
+        --border: #374160;
+        --text: #e8eaf2;
+        --text-muted: #9aa0b4;
+        --text-hint: #606880;
+        --blue-pale: #0a1a3a;
+        --blue-pale-text: #90b8f8;
+        --green-pale: #0a2218;
+        --green-pale-text: #6fcf8a;
+        --nhs-blue: #90b8f8;
+        --shadow: 0 2px 6px rgba(0,0,0,0.4);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Fira Sans', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Print ── */
+    @media print {
+      @page { size: A4 landscape; margin: 10mm; }
+      body { background: white; }
+      .no-print { display: none !important; }
+      .print-page { page-break-after: always; background: white; }
+      .print-page:last-child { page-break-after: auto; }
+      .side-footer {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        position: fixed;
+        top: 10mm;
+        left: 0;
+        font-size: 11px;
+        text-align: left;
+        color: #333;
+        white-space: nowrap;
+      }
+    }
+
+    /* ── Name prompt overlay (shown once on first visit) ── */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      padding: 32px 30px 26px;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(27,58,107,0.18);
+      animation: modalIn 0.22s ease both;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+      color: var(--navy);
+      font-size: 1.35em;
+      padding-bottom: 12px;
+      border-bottom: 3px solid var(--magenta);
+      margin-bottom: 20px;
+    }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 15px; }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--magenta);
+      box-shadow: 0 0 0 2px rgba(232,23,110,0.12);
+    }
+
+    .form-group input::placeholder { color: var(--text-hint); }
+
+    .form-group input.valid {
+      background-color: rgb(167, 252, 169);
+      border-color: var(--green);
+      color: #1a4a1a;
+      animation: pulseValid 0.4s ease;
+    }
+
+    .form-group input.invalid {
+      background-color: rgb(242, 170, 170);
+      border-color: var(--red);
+      color: #4a1a1a;
+    }
+
+    /* ── Buttons ── */
+    button {
+      padding: 10px 20px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary { background: var(--magenta); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--magenta-dark); transform: translateY(-1px); }
+    .btn-success { background: var(--navy); color: white; }
+    .btn-success:hover:not(:disabled) { background: var(--navy-dark); transform: translateY(-1px); }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover:not(:disabled) { background: var(--red-dark); }
+    .btn-secondary { background: var(--gray); color: white; }
+    .btn-secondary:hover:not(:disabled) { background: var(--gray-dark); }
+
+    .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .form-actions button { flex: 1; }
+
+    /* ── Alerts ── */
+    .alert {
+      padding: 12px 15px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      display: none;
+    }
+    .alert.show { display: block; }
+    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .alert-success { background: var(--green-pale); color: var(--green-pale-text); border: 1px solid #c3e6cb; }
+    .alert-info { background: var(--blue-pale); color: var(--blue-pale-text); border: 1px solid #bee5eb; }
+
+    /* ── Inline confirm banner ── */
+    .confirm-banner {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffc107;
+      border-radius: 5px;
+      padding: 10px 14px;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9em;
+      animation: fadeIn 0.15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes modalIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+    @keyframes pulseValid { 0% { box-shadow: 0 0 0 0 rgba(0,132,61,0.4); } 70% { box-shadow: 0 0 0 6px rgba(0,132,61,0); } 100% { box-shadow: 0 0 0 0 rgba(0,132,61,0); } }
+    @media (prefers-color-scheme: dark) {
+      .confirm-banner { background: #2e2200; color: #f5c842; border-color: #7a5c00; }
+    }
+    .confirm-banner .confirm-actions { display: flex; gap: 8px; margin-left: auto; }
+    .confirm-banner button { padding: 4px 12px; font-size: 0.85em; }
+
+    /* ── Global top nav bar ── */
+    .top-nav {
+      background: var(--navy);
+      padding: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      animation: slideDown 0.5s ease both;
+    }
+    .top-nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      gap: 16px;
+    }
+    .top-nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .top-nav-logo img,
+    .top-nav-logo svg {
+      height: 36px;
+      width: auto;
+      display: block;
+    }
+    .top-nav-title {
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .top-nav-title span {
+      color: var(--cyan);
+    }
+    .top-nav-actions { display: flex; gap: 10px; }
+    .top-nav-actions .btn-primary {
+      background: var(--magenta);
+      border-radius: 4px;
+      padding: 8px 18px;
+      font-size: 0.78em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .top-nav-actions .btn-success {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 4px;
+      padding: 8px 18px;
+      font-size: 0.78em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .top-nav-actions .btn-success:hover:not(:disabled) {
+      background: rgba(255,255,255,0.25);
+    }
+    .btn-about {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.75);
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-size: 0.78em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-about:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.6); transform: translateY(-1px); }
+
+    /* ── Shared modal chrome (matches FP10SS Manager) ── */
+    .modal { background: var(--surface); border-radius: 12px; max-width: 540px; width: 92%; max-height: 88vh; overflow-y: auto; padding: 32px 30px 26px; position: relative; box-shadow: 0 8px 32px rgba(27,58,107,0.18); animation: modalIn 0.22s ease both; }
+    .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 1.4em; color: var(--text-muted); cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 4px; }
+    .modal-close:hover { background: var(--surface2); color: var(--text); }
+    .modal h2 { margin: 0 0 16px; color: var(--navy); font-size: 1.35em; padding-bottom: 12px; border-bottom: 3px solid var(--magenta); }
+    .modal p, .modal li { color: var(--text-muted); font-size: 0.93em; line-height: 1.7; }
+    .modal .contact { margin-top: 18px; padding: 12px 14px; background: var(--surface2); border-left: 3px solid var(--cyan); border-radius: 0 6px 6px 0; font-size: 0.88em; color: var(--text-muted); }
+    .modal .contact a { color: var(--magenta); text-decoration: none; font-weight: 500; }
+    .modal .contact a:hover { text-decoration: underline; }
+
+    /* ── About modal (matches FP10SS Manager's "About this tool" design) ── */
+    .about-tag { font-size: 0.72em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-hint); margin-bottom: 10px; }
+    .about-modal h2 { margin: 0 0 16px; color: var(--navy); font-size: 1.55em; padding-bottom: 0; border-bottom: none; }
+    .pill { display: inline-block; font-weight: 700; font-size: 0.95em; padding: 2px 10px; border-radius: 20px; margin-right: 2px; }
+    .pill-hnc { background: #d7f5ec; color: #0f8a6c; }
+    .pill-ss { background: #fbe0ec; color: var(--magenta); }
+    .notice-bar { margin: 18px 0 4px; padding: 12px 14px; background: #fbe4ea; border-left: 4px solid var(--magenta); border-radius: 0 6px 6px 0; font-size: 0.88em; color: var(--text); }
+    .about-section-label { font-size: 0.75em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin: 22px 0 8px; }
+    .about-version { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.8em; color: var(--text-hint); }
+
+    /* ── Dashboard ── */
+    #sessionDashboard { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+    .dashboard-header {
+      display: none; /* replaced by top-nav */
+    }
+
+    /* ── Stat bar (replaces bulky session-info card) ── */
+    .stat-bar {
+      background: var(--surface);
+      padding: 18px 24px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: fadeUp 0.5s ease 0.1s both;
+    }
+    .stat-item { display: flex; align-items: center; gap: 6px; font-size: 0.9em; }
+    .stat-item strong { color: var(--navy); }
+    .stat-divider { width: 1px; height: 20px; background: var(--border); }
+    .stat-name-field {
+      border: none;
+      border-bottom: 1px solid var(--border);
+      padding: 2px 4px;
+      font-size: 0.9em;
+      background: transparent;
+      color: var(--text);
+      min-width: 160px;
+      border-radius: 0;
+    }
+    .stat-name-field:focus { outline: none; border-bottom-color: var(--magenta); }
+    .stat-name-field::placeholder { color: var(--text-hint); font-style: italic; }
+
+    /* ── Registers list ── */
+    .registers-list {
+      background: var(--surface);
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      animation: fadeUp 0.5s ease 0.2s both;
+    }
+    .registers-list h3 { margin-top: 0; color: var(--navy); font-size: 1em; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── Section heading style: eyebrow + bold title with accent word + thin rule ── */
+    .section-heading { margin: 0 0 16px; }
+    .section-heading .eyebrow { font-size: 0.72em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--magenta); margin: 0 0 6px; }
+    .section-heading h1, .section-heading h2, .section-heading h3 { margin: 0 0 10px; font-weight: 800; letter-spacing: -0.01em; color: var(--navy); text-transform: none; }
+    .section-heading .accent { color: var(--magenta); }
+    .section-heading .heading-rule { width: 34px; height: 3px; background: var(--magenta); border-radius: 2px; margin: 0 0 12px; }
+    .section-heading--sm h1, .section-heading--sm h2, .section-heading--sm h3 { margin-bottom: 6px; }
+    .section-heading--sm .heading-rule { width: 24px; height: 2px; margin-bottom: 10px; }
+
+    .register-item {
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--magenta);
+      border-radius: 5px;
+      margin-bottom: 10px;
+      background: var(--surface2);
+      animation: fadeUp 0.35s ease both;
+    }
+    .register-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .register-info strong { color: var(--navy); }
+    .register-serial {
+      font-family: monospace;
+      font-size: 0.85em;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .register-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .empty-state { text-align: center; padding: 40px; color: var(--text-hint); }
+
+    /* ── Footer ── */
+    .footer-note {
+      font-size: 0.85em;
+      text-align: center;
+      color: var(--text-muted);
+      margin-top: 15px;
+      line-height: 1.4em;
+    }
+    .footer-note a { color: var(--magenta); text-decoration: none; }
+    .footer-note a:hover { text-decoration: underline; }
+
+    /* ── Print content (hidden from screen) ── */
+    #printContent { display: none; }
+
+    /* ── Spinner ── */
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid var(--magenta);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* ── Restore session banner ── */
+    .restore-banner {
+      background: var(--blue-pale);
+      color: var(--blue-pale-text);
+      border: 1px solid #b3c8e8;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .restore-banner .restore-actions { display: flex; gap: 8px; margin-left: auto; }
+    .restore-banner button { padding: 6px 14px; font-size: 0.875em; }
+
+    /* ── Auto-advance animation hint ── */
+    @keyframes pulseGreen {
+      0% { box-shadow: 0 0 0 0 rgba(40,167,69,0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(40,167,69,0); }
+      100% { box-shadow: 0 0 0 0 rgba(40,167,69,0); }
+    }
+    .auto-advance { animation: pulseGreen 0.4s ease; }
+  </style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+
+<!-- ======================================================
+     NAME PROMPT MODAL (shown once per session)
+     ====================================================== -->
+<!-- ======================================================
+     ADD REGISTER MODAL
+     ====================================================== -->
+<div id="addRegisterModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h2>Create New FP10 <span style="color:var(--magenta);">Register</span></h2>
+    <div id="alertContainer"></div>
+
+    <form id="fp10Form">
+      <div class="form-group">
+        <label for="fp10code">Department's FP10 Code:</label>
+        <input type="text" id="fp10code" placeholder="e.g., RYR123" required />
+      </div>
+
+      <div class="form-group">
+        <label for="padCount">Number of FP10 prescriptions per pad:</label>
+        <input type="number" id="padCount" min="3" max="200" value="50" required />
+      </div>
+
+      <div class="form-group">
+        <label>Enter the first three 11-digit FP10 serial numbers:</label>
+      </div>
+
+      <div class="form-group">
+        <input type="text" id="serial1" placeholder="Enter first serial (11 digits)" maxlength="11" required autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <input type="text" id="serial2" placeholder="Enter second serial (11 digits)" maxlength="11" required autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <input type="text" id="serial3" placeholder="Enter third serial (11 digits)" maxlength="11" required autocomplete="off" />
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" id="cancelBtn">Close</button>
+        <button type="submit" class="btn-primary" id="generateBtn" disabled>Add Register</button>
+      </div>
+
+      <div class="footer-note">
+        Developed for University Hospitals Sussex NHS Foundation Trust.<br>
+        For any questions please email <a href="mailto:ismael.yasin@nhs.net">ismael.yasin@nhs.net</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ======================================================
+     TOP NAV BAR
+     ====================================================== -->
+<nav class="top-nav" role="banner">
+  <div class="top-nav-inner">
+    <a class="top-nav-logo" href="#" aria-label="GD&G Special Projects home">
+      <div style="width:3px;height:30px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+      <div style="display:flex;flex-direction:column;justify-content:center;line-height:1.2;">
+        <span style="font-size:0.7em;font-weight:400;color:rgba(255,255,255,0.65);letter-spacing:0.08em;text-transform:uppercase;">FP10HNC Manager by</span>
+        <span style="font-size:1em;font-weight:700;color:#ffffff;letter-spacing:0.01em;">GD&G <span style="font-weight:400;color:rgba(255,255,255,0.7);">Special Projects</span><sup style="font-size:0.55em;color:rgba(255,255,255,0.5);vertical-align:super;">™</sup></span>
+      </div>
+    </a>
+    <div class="top-nav-actions">
+      <button class="btn-about" onclick="window.location.href='index.html'" aria-label="Back to app">Back to app</button>
+      <button class="btn-about" onclick="openHowTo()" aria-label="How to use this tool">How to Use</button>
+      <button class="btn-about" onclick="openAbout()" aria-label="About this tool">About</button>
+      <button class="btn-primary" id="addRegisterBtn">+ Add Register</button>
+      <button class="btn-success" id="endSessionBtn" style="display:none;">End Session</button>
+      <button class="btn-about" onclick="signOut()" aria-label="Sign out">Sign out</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ======================================================
+     ABOUT MODAL
+     ====================================================== -->
+<div id="aboutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;justify-content:center;align-items:center;animation:fadeIn 0.15s ease;" onclick="if(event.target===this)closeAbout()">
+  <div class="modal about-modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <button class="modal-close" onclick="closeAbout()" aria-label="Close">&times;</button>
+    <div class="about-tag">About this tool</div>
+    <h2 id="aboutTitle">FP10 <span style="color:var(--magenta);">Manager</span></h2>
+    <p>Developed by <strong style="color:var(--text);">GD&amp;G <span style="font-weight:400;">Special Projects™</span></strong> for <strong style="color:var(--text);">University Hospitals Sussex NHS Foundation Trust</strong>, <strong style="color:var(--text);">FP10 Manager™</strong> covers the two distinct types of FP10 controlled stationery in circulation across the Trust.</p>
+    <p><span class="pill pill-hnc">FP10HNC Manager</span> is for the handwritten pads — FP10HNC forms, typically issued in pads of 50, filled in by hand at the point of prescribing. As pads are booked out to a department, it generates the pharmacy register, cover sheets, and session log needed to track that pad through to return — a full audit trail without anyone re-keying serial ranges by hand.</p>
+    <p><span class="pill pill-ss">FP10SS Manager</span> is for the machine-printed single sheets — FP10SS forms, overprinted via Symphony. Quantities in this volume can't practically be counted sheet by sheet, so this tool works out exactly how many sheets are in a stack from just the first three serials and the last one, then produces a Pharmacy Copy / Ward Copy log ready to print.</p>
+    <div class="notice-bar">This tool is intended for use by <strong>authorised Trust staff only</strong>.</div>
+    <div class="about-section-label">Support</div>
+    <p>For support or more information: <a href="mailto:ismael.yasin@nhs.net" style="color:var(--magenta);text-decoration:none;font-weight:500;">ismael.yasin@nhs.net</a></p>
+    <div class="about-version">Version 36.1</div>
+  </div>
+</div>
+
+<!-- ======================================================
+     HOW TO USE MODAL
+     ====================================================== -->
+<div id="howToModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;justify-content:center;align-items:center;animation:fadeIn 0.15s ease;" onclick="if(event.target===this)closeHowTo()">
+  <div class="modal" style="max-width:580px;" role="dialog" aria-modal="true" aria-labelledby="howToTitle">
+    <button class="modal-close" onclick="closeHowTo()" aria-label="Close">&times;</button>
+    <div class="about-tag">Step-by-step guide</div>
+    <h2 id="howToTitle">How to Use FP10 <span style="color:var(--magenta);">Manager</span></h2>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--cyan);border-radius:4px;padding:10px 14px;font-size:0.85em;color:var(--text-muted);margin-bottom:20px;">
+        Each register corresponds to a single physical FP10 pad. Always have the pad in front of you when entering serial numbers.
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="background:var(--magenta);color:#fff;font-size:0.75em;font-weight:700;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div>
+          <div>
+            <div style="font-size:0.92em;font-weight:700;color:var(--navy);margin-bottom:4px;">Enter your name</div>
+            <div style="font-size:0.88em;color:var(--text-muted);line-height:1.65;">When the app loads you will be prompted for your name. This is recorded on all generated documents. You can also update it in the session bar at the top of the page.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="background:var(--magenta);color:#fff;font-size:0.75em;font-weight:700;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div>
+          <div>
+            <div style="font-size:0.92em;font-weight:700;color:var(--navy);margin-bottom:4px;">Add a register</div>
+            <div style="font-size:0.88em;color:var(--text-muted);line-height:1.65;">Click <strong style="color:var(--text);">+ Add Register</strong> in the navigation bar. Enter the department FP10 / RYR/UHS code (e.g. RYR123), the number of prescriptions per pad (typically 50), and the first three 11-digit serial numbers from the front of the pad. Fields turn green when the pattern is valid.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="background:var(--magenta);color:#fff;font-size:0.75em;font-weight:700;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div>
+          <div>
+            <div style="font-size:0.92em;font-weight:700;color:var(--navy);margin-bottom:4px;">Add more pads (if needed)</div>
+            <div style="font-size:0.88em;color:var(--text-muted);line-height:1.65;">After saving a register the serial fields clear automatically. The department code and pad count are kept so you can enter the next pad's serials straight away. Click <strong style="color:var(--text);">Close</strong> when you have finished adding pads for this session.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="background:var(--magenta);color:#fff;font-size:0.75em;font-weight:700;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">4</div>
+          <div>
+            <div style="font-size:0.92em;font-weight:700;color:var(--navy);margin-bottom:4px;">End the session &amp; download PDFs</div>
+            <div style="font-size:0.88em;color:var(--text-muted);line-height:1.65;">Click <strong style="color:var(--text);">End Session</strong>. You will see a download button for each register (cover sheet + full tracking register with one row per prescription) and a <strong style="color:var(--text);">pharmacy session log</strong> summarising all pads issued in this session.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;">
+          <div style="background:var(--navy);color:#fff;font-size:0.75em;font-weight:700;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">&#9432;</div>
+          <div>
+            <div style="font-size:0.92em;font-weight:700;color:var(--navy);margin-bottom:4px;">Session restore</div>
+            <div style="font-size:0.88em;color:var(--text-muted);line-height:1.65;">If you close the browser tab accidentally your session is saved for up to 24 hours. Reopen the app and choose <strong style="color:var(--text);">Restore</strong> when prompted.</div>
+          </div>
+        </div>
+
+      </div>
+
+    <div class="about-section-label">Support</div>
+    <p>For support or more information: <a href="mailto:ismael.yasin@nhs.net" style="color:var(--magenta);text-decoration:none;font-weight:500;">ismael.yasin@nhs.net</a></p>
+  </div>
+</div>
+<div id="sessionDashboard">
+  <div class="dashboard-header"></div>
+
+  <!-- Compact stat bar -->
+  <div class="stat-bar">
+    <div class="stat-item">
+      <span>Date:</span>
+      <strong id="sessionDate">-</strong>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span>Generated by:</span>
+      <input type="text" id="generatedBy" class="stat-name-field" placeholder="Enter your name" />
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span>Registers:</span>
+      <strong id="registerCount">0</strong>
+    </div>
+  </div>
+
+  <div id="siteCard" style="display:none;margin-bottom:20px;padding:16px;background:#fff;border:1px solid var(--border);border-radius:8px;"></div>
+
+  <div id="rejectedHncCard" style="display:none;margin-bottom:20px;padding:16px;background:#fdecef;border:1px solid #eeb4bb;border-radius:8px;">
+    <div style="color:#a01c2e;font-weight:700;margin-bottom:4px;">⚠ You have registers sent back for correction</div>
+    <p style="color:var(--text-muted);font-size:0.9em;margin-bottom:12px;">A Pharmacy Technician found something to fix on <span id="rejectedHncCount">one or more</span> of your registers.</p>
+    <a href="corrections.html" class="btn-primary" style="display:inline-block;text-decoration:none;padding:10px 18px;">Go to Corrections</a>
+  </div>
+
+  <div class="registers-list">
+    <div class="section-heading section-heading--sm">
+      <h3 style="text-transform:uppercase;letter-spacing:0.06em;font-size:1em;">Registers in this <span class="accent">session</span></h3>
+      <div class="heading-rule"></div>
+    </div>
+    <div id="registersList">
+      <div class="empty-state">
+        No registers created yet. Click "Add New Register" to begin.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden print content -->
+<div id="printContent"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+// ============================================================================
+// CONSTANTS & STATE
+// ============================================================================
+
+const PAD_KEY     = 'fp10_last_pad_count';
+
+const SESSION_STATE = {
+  registers: [],
+  sessionDate: new Date().toLocaleDateString('en-GB'),
+  generatedBy: '',
+  costCentre: '',
+  amendingRegisterId: null // set when correcting one rejected register — resubmits in place
+};
+
+// Session restore (recovering an in-progress session after an accidental
+// window closure) was removed — it caused more confusion than it
+// prevented. If the tab closes before End Session, the session is gone
+// and needs starting again from scratch. This is a deliberate trade-off,
+// not an oversight.
+
+function saveLastPadCount(v) {
+  try { localStorage.setItem(PAD_KEY, v); } catch(e) {}
+}
+
+function loadLastPadCount() {
+  try { return localStorage.getItem(PAD_KEY) || '50'; } catch(e) { return '50'; }
+}
+
+// ============================================================================
+// AUTH GATE — the serial-number logic itself now lives server-side in the
+// fp10-logic Edge Function (see supabase/functions/fp10-logic). This page
+// only sends raw serials in and receives a computed result back.
+// ============================================================================
+let CURRENT_TRUST = null;
+let CURRENT_PROFILE = null;
+let MY_SITE_ID = null; // set once a site is chosen (or auto-chosen) for this session
+
+const TRUST_READY = (async () => {
+  const session = await requireSession();
+  if (!session) return; // requireSession already redirected to login.html
+  CURRENT_TRUST = await getMyTrust();
+  CURRENT_PROFILE = await getMyProfile();
+  if (CURRENT_PROFILE?.isAuditor) { window.location.href = 'auditor.html'; return; }
+  await loadMySites();
+})();
+
+function escapeHtmlHNC(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+async function loadMySites() {
+  try {
+    const { sites } = await callAdminUsers('list-my-sites', {});
+    if (!sites || sites.length === 0) return; // trust isn't using sites — skip entirely
+    const card = document.getElementById('siteCard');
+    if (sites.length === 1) {
+      MY_SITE_ID = sites[0].id;
+      card.innerHTML = `<label style="font-size:0.85em;font-weight:600;color:var(--text-muted);">Site</label><div style="font-weight:700;color:var(--navy);">${escapeHtmlHNC(sites[0].name)}</div>`;
+    } else {
+      card.innerHTML = `
+        <label for="siteSelect" style="font-size:0.85em;font-weight:600;color:var(--text-muted);">Site</label>
+        <select id="siteSelect" required>
+          <option value="">Select the site you're working at…</option>
+          ${sites.map(s => `<option value="${s.id}">${escapeHtmlHNC(s.name)}</option>`).join('')}
+        </select>`;
+      document.getElementById('siteSelect').addEventListener('change', (e) => { MY_SITE_ID = e.target.value || null; });
+    }
+    card.style.display = 'block';
+  } catch (err) { /* non-fatal — proceed without site tracking */ }
+}
+
+// ============================================================================
+// UI UTILITIES
+// ============================================================================
+
+function showAlert(message, type = 'error') {
+  const container = document.getElementById('alertContainer');
+  container.innerHTML = `<div class="alert alert-${type} show">${message}</div>`;
+  setTimeout(() => { container.innerHTML = ''; }, 5000);
+}
+
+// Inline confirm banner — returns a promise that resolves true/false
+function showConfirmBanner(container, message) {
+  return new Promise(resolve => {
+    // Remove any existing banner
+    const existing = container.querySelector('.confirm-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.className = 'confirm-banner';
+    banner.innerHTML = `
+      <span>${message}</span>
+      <div class="confirm-actions">
+        <button class="btn-secondary" id="confirmNo" style="padding:4px 12px;font-size:0.85em;">Cancel</button>
+        <button class="btn-danger"    id="confirmYes" style="padding:4px 12px;font-size:0.85em;">Yes, remove</button>
+      </div>`;
+    container.appendChild(banner);
+
+    banner.querySelector('#confirmYes').onclick = () => { banner.remove(); resolve(true); };
+    banner.querySelector('#confirmNo').onclick  = () => { banner.remove(); resolve(false); };
+  });
+}
+
+function updateRegistersList() {
+  const list    = document.getElementById('registersList');
+  const count   = document.getElementById('registerCount');
+  const endBtn  = document.getElementById('endSessionBtn');
+  const nameEl  = document.getElementById('generatedBy');
+
+  // Sync generatedBy from stat bar
+  SESSION_STATE.generatedBy = nameEl.value.trim();
+
+  count.textContent = SESSION_STATE.registers.length;
+
+  if (SESSION_STATE.registers.length === 0) {
+    list.innerHTML = '<div class="empty-state">No registers created yet. Click "Add New Register" to begin.</div>';
+    endBtn.style.display = 'none';
+  } else {
+    endBtn.style.display = 'inline-block';
+    list.innerHTML = SESSION_STATE.registers.map((reg, index) => {
+      const borderColors = ['#e8176e','#1b3a6b','#2a52a0','#c4115c','#122d56','#1557a0'];
+      const color = borderColors[index % borderColors.length];
+      return `
+        <div class="register-item" style="border-left-color:${color}" id="reg-item-${index}">
+          <div class="register-item-row">
+            <div class="register-info">
+              <strong>Register ${index + 1}</strong> — ${reg.departmentCode}
+              (${reg.serials.length} prescriptions)
+              <div class="register-serial">Serials: ${reg.serials[0]} → ${reg.serials[reg.serials.length - 1]}</div>
+            </div>
+            <div class="register-actions">
+              <button class="btn-danger"  style="padding:6px 14px;font-size:0.85em;" onclick="confirmRemoveRegister(${index})">Remove</button>
+            </div>
+          </div>
+          <div id="confirm-container-${index}"></div>
+        </div>`;
+    }).join('');
+  }
+}
+
+// Inline confirm for remove (no browser dialog)
+window.confirmRemoveRegister = async function(index) {
+  const container = document.getElementById(`confirm-container-${index}`);
+  const confirmed = await showConfirmBanner(container, 'Remove this register? This cannot be undone.');
+  if (confirmed) {
+    SESSION_STATE.registers.splice(index, 1);
+    updateRegistersList();
+  }
+};
+
+
+
+// ============================================================================
+// NAME PROMPT (shown once per page load if name not yet set)
+// ============================================================================
+
+// ============================================================================
+// RESTORE SESSION BANNER
+// ============================================================================
+
+
+
+// ============================================================================
+// FORM VALIDATION
+// ============================================================================
+
+const serialInputs = ['serial1','serial2','serial3'].map(id => document.getElementById(id));
+const generateBtn  = document.getElementById('generateBtn');
+const fp10CodeInput = document.getElementById('fp10code');
+const padCountInput = document.getElementById('padCount');
+
+// Auto-advance: move focus to next serial field when 11 digits entered
+serialInputs.forEach((input, i) => {
+  input.addEventListener('input', () => {
+    // Strip non-digits
+    input.value = input.value.replace(/\D/g, '');
+
+    if (input.value.length === 11 && i < serialInputs.length - 1) {
+      serialInputs[i + 1].classList.add('auto-advance');
+      serialInputs[i + 1].focus();
+      serialInputs[i + 1].select();
+      setTimeout(() => serialInputs[i + 1].classList.remove('auto-advance'), 400);
+    }
+    validateForm();
+  });
+
+  // Also validate on paste
+  input.addEventListener('paste', () => setTimeout(validateForm, 0));
+});
+
+fp10CodeInput.addEventListener('input', validateForm);
+padCountInput.addEventListener('input', () => {
+  saveLastPadCount(padCountInput.value);
+  validateForm();
+});
+
+// The cost centre is fixed for the whole session — once the first register
+// is created, this locks the field so every register in this session uses
+// the same one, rather than allowing a mix (e.g. RYR73, then RYR76).
+function applyCostCentreLock() {
+  if (SESSION_STATE.costCentre) {
+    fp10CodeInput.value = SESSION_STATE.costCentre;
+    fp10CodeInput.readOnly = true;
+    fp10CodeInput.style.background = 'var(--bg-alt)';
+    fp10CodeInput.style.color = 'var(--text-muted)';
+    fp10CodeInput.style.cursor = 'not-allowed';
+  } else {
+    fp10CodeInput.readOnly = false;
+    fp10CodeInput.style.background = '';
+    fp10CodeInput.style.color = '';
+    fp10CodeInput.style.cursor = '';
+  }
+}
+
+let _validateInFlight = false;
+
+async function validateForm() {
+  const serials  = serialInputs.map(i => i.value.trim());
+  const code     = fp10CodeInput.value.trim();
+  const padCount = parseInt(padCountInput.value);
+
+  serialInputs.forEach(i => i.classList.remove('valid','invalid'));
+
+  if (!serials.every(s => s.length === 11) || !code || !padCount) {
+    generateBtn.disabled = true;
+    return;
+  }
+  if (!serials.every(s => /^\d{11}$/.test(s))) {
+    serialInputs.forEach(i => {
+      if (i.value.trim() && !/^\d{11}$/.test(i.value.trim())) i.classList.add('invalid');
+    });
+    generateBtn.disabled = true;
+    return;
+  }
+  const prefix = serials[0].substring(0, 7);
+  if (!serials.every(s => s.startsWith(prefix))) {
+    serialInputs.forEach(i => i.classList.add('invalid'));
+    generateBtn.disabled = true;
+    return;
+  }
+
+  // Format looks right — confirm the actual pattern server-side. Guarded so
+  // rapid keystrokes don't stack up overlapping requests.
+  if (_validateInFlight) return;
+  _validateInFlight = true;
+  generateBtn.disabled = true;
+  try {
+    const [first, second, third] = serials.map(Number);
+    const { valid } = await callFp10Logic('validate-pattern', { first, second, third });
+    if (valid) {
+      serialInputs.forEach(i => i.classList.add('valid'));
+      generateBtn.disabled = false;
+    } else {
+      serialInputs.forEach(i => i.classList.add('invalid'));
+      generateBtn.disabled = true;
+    }
+  } catch (err) {
+    serialInputs.forEach(i => i.classList.add('invalid'));
+    showAlert(err.message, 'error');
+  } finally {
+    _validateInFlight = false;
+  }
+}
+
+// ============================================================================
+// FORM SUBMISSION
+// ============================================================================
+
+document.getElementById('fp10Form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  generateBtn.disabled = true;
+  const origLabel = generateBtn.textContent;
+  generateBtn.textContent = 'Generating…';
+  try {
+    const departmentCode = fp10CodeInput.value.trim();
+    const padCount = parseInt(padCountInput.value);
+    if (padCount < 3 || padCount > 200) throw new Error('Pad count must be between 3 and 200');
+    const [first, second] = serialInputs.slice(0,2).map(i => Number(i.value.trim()));
+
+    // The actual serial-pattern maths happens server-side — see
+    // supabase/functions/fp10-logic/serial.ts
+    const { serials } = await callFp10Logic('generate-pad', { first, second, padCount, deptCode: departmentCode, costCentre: SESSION_STATE.costCentre || departmentCode });
+
+    // Lock the cost centre in for the rest of this session on the first
+    // register — every subsequent register uses this same one.
+    if (!SESSION_STATE.costCentre) {
+      SESSION_STATE.costCentre = departmentCode;
+      applyCostCentreLock();
+    }
+
+    SESSION_STATE.registers.push({
+      departmentCode,
+      serials,
+      createdAt: new Date().toLocaleString('en-GB')
+    });
+
+    updateRegistersList();
+
+    // Keep the modal open — just clear the serial fields so the user can
+    // immediately enter the next pad. Department code and pad count are
+    // preserved as they are likely the same for the next register.
+    serialInputs.forEach(i => {
+      i.value = '';
+      i.classList.remove('valid', 'invalid');
+    });
+    serialInputs[0].focus();
+
+    showAlert(`Register added! (${serials.length} prescriptions) — enter the next pad's serials or close this window.`, 'success');
+  } catch (err) {
+    showAlert(err.message, 'error');
+  } finally {
+    generateBtn.textContent = origLabel;
+  }
+});
+
+// ============================================================================
+// MODAL CONTROLS
+// ============================================================================
+
+document.getElementById('addRegisterBtn').addEventListener('click', () => {
+  document.getElementById('addRegisterModal').style.display = 'flex';
+  applyCostCentreLock();
+  setTimeout(() => (SESSION_STATE.costCentre ? serialInputs[0] : fp10CodeInput).focus(), 100);
+});
+
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  document.getElementById('addRegisterModal').style.display = 'none';
+  document.getElementById('fp10Form').reset();
+  padCountInput.value = loadLastPadCount();
+  applyCostCentreLock();
+  serialInputs.forEach(i => i.classList.remove('valid','invalid'));
+  generateBtn.disabled = true;
+});
+
+
+
+// ============================================================================
+// PDF GENERATION (unchanged from original)
+// ============================================================================
+
+async function loadImageAsDataURL(url) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    if (blob.type === 'image/svg+xml' || url.endsWith('.svg')) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(blob);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width || 200;
+          canvas.height = img.height || 80;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          URL.revokeObjectURL(objectUrl);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Failed to load SVG')); };
+        img.src = objectUrl;
+      });
+    } else {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (err) { console.error('Error loading image:', err); return null; }
+}
+
+async function generateCoverSheetPDF(register) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const serialRange = `${register.serials[0]} - ${register.serials[register.serials.length - 1]}`;
+
+  await TRUST_READY; // make sure the trust/logo fetch has actually finished before we read it
+  const logoData = CURRENT_TRUST?.logoUrl ? await loadImageAsDataURL(CURRENT_TRUST.logoUrl) : null;
+  if (logoData) pdf.addImage(logoData, 'PNG', 15, 15, 72, 20);
+
+  pdf.setFontSize(20);
+  pdf.setTextColor(255, 0, 0);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('FP10 Register (Controlled Stationery)', pageWidth / 2, 50, { align: 'center' });
+
+  pdf.setFontSize(12);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text('Date of issue: ___________________________', pageWidth / 2, 65, { align: 'center' });
+
+  pdf.autoTable({
+    startY: 80,
+    head: [['Staff member', 'Print name', 'Signature']],
+    body: [['Issued by (Pharmacy)', '', ''], ['Received by (Registered professional)', '', '']],
+    margin: { left: 50, right: 50 },
+    theme: 'grid',
+    styles: { fontSize: 11, cellPadding: 8, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3 },
+    headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', lineColor: [0,0,0], lineWidth: 0.3 },
+    columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 50 }, 2: { cellWidth: 50 } }
+  });
+
+  const finalY = pdf.lastAutoTable.finalY + 15;
+  pdf.setFontSize(11);
+  pdf.text(`FP10 serial number range: ${serialRange}`, pageWidth / 2, finalY, { align: 'center' });
+  pdf.text(`Speciality / Department code: ${register.departmentCode}`, pageWidth / 2, finalY + 8, { align: 'center' });
+
+  return pdf;
+}
+
+async function generateRegisterPDF(register) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  const pageWidth  = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const serialRange = `${register.serials[0]} - ${register.serials[register.serials.length - 1]}`;
+  const MAX_ROWS = 17;
+  const total = register.serials.length;
+
+  let rowsPerPage;
+  if (total <= MAX_ROWS) {
+    rowsPerPage = total;
+  } else {
+    const remainder = total % MAX_ROWS;
+    if (remainder > 0 && remainder < 8) {
+      rowsPerPage = Math.ceil(total / Math.ceil(total / MAX_ROWS));
+    } else {
+      rowsPerPage = MAX_ROWS;
+    }
+  }
+
+  const totalPages = Math.ceil(total / rowsPerPage);
+  await TRUST_READY; // make sure the trust/logo fetch has actually finished before we read it
+  const logoData = CURRENT_TRUST?.logoUrl ? await loadImageAsDataURL(CURRENT_TRUST.logoUrl) : null;
+
+  for (let page = 0; page < totalPages; page++) {
+    if (page > 0) pdf.addPage();
+    if (logoData) pdf.addImage(logoData, 'PNG', 10, 10, 60, 16);
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(255, 0, 0);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('The completed register must be returned to pharmacy before issuing further FP10s', pageWidth / 2, 30, { align: 'center' });
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`Speciality/Trust code: ${register.departmentCode}`, 10, 37);
+
+    if (SESSION_STATE.costCentre) {
+      pdf.setFontSize(20);
+      pdf.setTextColor(232, 23, 110);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(SESSION_STATE.costCentre, pageWidth - 10, 20, { align: 'right' });
+    }
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`FP10 serial number range: ${serialRange}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+    pdf.setFontSize(9);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Serial Range: ${serialRange} | ${register.departmentCode} | Page ${page + 1} of ${totalPages}`, 5, pageHeight / 2, { angle: 90 });
+
+    const startIdx = page * rowsPerPage;
+    const endIdx   = Math.min(startIdx + rowsPerPage, total);
+    const tableData = register.serials.slice(startIdx, endIdx).map(s => ['', s, '', '', '', '', '']);
+
+    pdf.autoTable({
+      startY: 42,
+      head: [['Date of issue', 'FP10 serial number', 'Patient name', 'Patient ID', 'Medication(s) issued', 'Prescriber (Name and Registration Number)', 'Signature']],
+      body: tableData,
+      margin: { left: 8, right: 8, bottom: 12 },
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2.5, halign: 'center', valign: 'middle', overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.3 },
+      headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', fontSize: 8, lineColor: [0,0,0], lineWidth: 0.3 },
+      columnStyles: { 0:{cellWidth:28}, 1:{cellWidth:32}, 2:{cellWidth:50}, 3:{cellWidth:28}, 4:{cellWidth:65}, 5:{cellWidth:42}, 6:{cellWidth:34} }
+    });
+
+    pdf.setTextColor(0, 0, 0);
+  }
+  return pdf;
+}
+
+async function generateLogPDF() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  const pageWidth  = pdf.internal.pageSize.getWidth();
+  const generatedBy = SESSION_STATE.generatedBy || 'Not specified';
+
+  await TRUST_READY; // make sure the trust/logo fetch has actually finished before we read it
+  const logoData = CURRENT_TRUST?.logoUrl ? await loadImageAsDataURL(CURRENT_TRUST.logoUrl) : null;
+  if (logoData) pdf.addImage(logoData, 'PNG', 10, 10, 60, 16);
+
+  pdf.setFontSize(16);
+  pdf.setTextColor(46, 94, 158);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('FP10 Register Session Log - Pharmacy Copy', pageWidth / 2, 35, { align: 'center' });
+
+  // Cost centre — same for the whole session — shown prominently top-right
+  if (SESSION_STATE.costCentre) {
+    pdf.setFontSize(22);
+    pdf.setTextColor(232, 23, 110);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(SESSION_STATE.costCentre, pageWidth - 10, 20, { align: 'right' });
+  }
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text(`Session Date: ${SESSION_STATE.sessionDate}`, 10, 50);
+  pdf.text(`Generated By: ${generatedBy}`, 10, 57);
+  pdf.text(`Total Registers: ${SESSION_STATE.registers.length}`, 10, 64);
+
+  const placeholderStyle = { textColor: [170, 170, 170], fontStyle: 'italic' };
+
+  const tableData = [];
+  SESSION_STATE.registers.forEach((reg, i) => {
+    tableData.push([
+      { content: i + 1, rowSpan: 3 },
+      { content: SESSION_STATE.sessionDate, rowSpan: 3 },
+      { content: reg.departmentCode, rowSpan: 3 },
+      { content: reg.serials[0], rowSpan: 3 },
+      { content: reg.serials[reg.serials.length - 1], rowSpan: 3 },
+      { content: reg.serials.length, rowSpan: 3 },
+      { content: 'Name & Reg', styles: placeholderStyle },
+      { content: 'Name & Reg', styles: placeholderStyle },
+      { content: '', rowSpan: 3 },
+      { content: 'Name & Reg', styles: placeholderStyle },
+      { content: 'Name & Reg', styles: placeholderStyle }
+    ]);
+    tableData.push([
+      { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle }
+    ]);
+    tableData.push([
+      { content: 'Date', styles: placeholderStyle },
+      { content: 'Date', styles: placeholderStyle },
+      { content: 'Date', styles: placeholderStyle },
+      { content: 'Date', styles: placeholderStyle }
+    ]);
+  });
+
+  pdf.autoTable({
+    startY: 70,
+    head: [['Register', 'Date\nCreated', 'Dept. Code\n(RYR/UHS)', 'First Serial', 'Last Serial', 'Total', 'Checked by', 'Received by', 'Quantity\nReturned', 'Returned by', 'Received into\npharm by']],
+    body: tableData,
+    margin: { left: 10, right: 10 },
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 4, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3, overflow: 'linebreak', minCellHeight: 9 },
+    headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', valign: 'middle', fontSize: 8, lineColor: [0,0,0], lineWidth: 0.3, minCellHeight: 10 },
+    columnStyles: { 0:{cellWidth:22,halign:'center'}, 1:{cellWidth:22}, 2:{cellWidth:24}, 3:{cellWidth:25}, 4:{cellWidth:25}, 5:{cellWidth:20,halign:'center'}, 6:{cellWidth:30}, 7:{cellWidth:30}, 8:{cellWidth:22,halign:'center'}, 9:{cellWidth:30}, 10:{cellWidth:30} }
+  });
+
+  return pdf;
+}
+
+// ============================================================================
+// END SESSION
+// ============================================================================
+
+document.getElementById('endSessionBtn').addEventListener('click', async function() {
+  const btn = this;
+
+  const siteSelect = document.getElementById('siteSelect');
+  if (siteSelect && !MY_SITE_ID) {
+    showAlert('Please select which site this session is for.');
+    return;
+  }
+
+  btn.disabled = true;
+  const origLabel = btn.textContent;
+  btn.textContent = 'Submitting…';
+
+  try {
+    const registers = SESSION_STATE.registers.map(reg => ({
+      first: reg.serials[0],
+      second: reg.serials[1],
+      padCount: reg.serials.length,
+      deptCode: reg.departmentCode,
+    }));
+
+    await callFp10Logic('submit-hnc-session', {
+      siteId: MY_SITE_ID,
+      registers,
+      costCentre: SESSION_STATE.costCentre,
+    });
+
+    showDownloadInterface();
+  } catch (err) {
+    alert('Error submitting session: ' + err.message);
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
+});
+
+function showDownloadInterface() {
+  const list = document.getElementById('registersList');
+  const generatedBy = document.getElementById('generatedBy').value.trim();
+
+  let html = `
+    <div style="margin-bottom:16px;padding:14px;background:var(--blue-pale);color:var(--blue-pale-text);border-radius:6px;border:1px solid #b3c8e8;">
+      <strong>Session submitted</strong> — each register needs a Pharmacy Technician to verify the whole session before it can be printed.
+      <br/>Once checked, it's stored for <strong>24 hours</strong> so you can print it — check <strong>My Pending Prints</strong> on the home page.
+      The record itself stays permanently for audit purposes; only the printable copy expires.
+    </div>
+    <div class="register-item" style="background:var(--blue-pale);border-color:#b3c8e8;border-left-color:var(--navy);">
+      <div class="register-item-row">
+        <div class="register-info">
+          <strong style="color:var(--navy);">📋 Pharmacy session log</strong>
+          <div class="register-serial">Generated by: ${generatedBy} · Total registers: ${SESSION_STATE.registers.length}</div>
+        </div>
+      </div>
+    </div>`;
+
+  SESSION_STATE.registers.forEach((reg, i) => {
+    html += `
+      <div class="register-item">
+        <div class="register-item-row">
+          <div class="register-info">
+            <strong>Register ${i + 1}</strong> — ${reg.departmentCode} (${reg.serials.length} prescriptions)
+            <div class="register-serial">Serials: ${reg.serials[0]} → ${reg.serials[reg.serials.length - 1]}</div>
+            <div class="register-serial" style="color:var(--text-muted);font-style:italic;">Awaiting verification</div>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  html += `
+    <div style="margin-top:20px;text-align:center;">
+      <button class="btn-danger" onclick="confirmClearSession(this)">Clear session &amp; start new</button>
+    </div>`;
+
+  list.innerHTML = html;
+  document.getElementById('endSessionBtn').style.display = 'none';
+}
+
+window.confirmClearSession = function(btn) {
+  // Inline confirm replacing the button
+  const wrapper = btn.parentElement;
+  wrapper.innerHTML = `
+    <div class="confirm-banner" style="justify-content:center;">
+      <span>Clear all session data? This cannot be undone.</span>
+      <div class="confirm-actions">
+        <button class="btn-secondary" onclick="updateRegistersList()">Cancel</button>
+        <button class="btn-danger" onclick="clearSession()">Yes, clear</button>
+      </div>
+    </div>`;
+};
+
+window.clearSession = function() {
+  SESSION_STATE.registers = [];
+  SESSION_STATE.costCentre = '';
+  const fullName = CURRENT_PROFILE?.fullName || '';
+  document.getElementById('generatedBy').value = fullName;
+  SESSION_STATE.generatedBy = fullName;
+  document.getElementById('endSessionBtn').style.display = 'none';
+  applyCostCentreLock();
+  updateRegistersList();
+  loadRejectedHncRegisters();
+};
+
+window.downloadLogPDF = async function() {
+  const btn = event.target;
+  const orig = btn.innerHTML;
+  btn.innerHTML = 'Generating…<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    const pdf = await generateLogPDF();
+    pdf.save(`FP10_Session_Log_${SESSION_STATE.sessionDate.replace(/\//g,'-')}.pdf`);
+    btn.innerHTML = '✓ Downloaded';
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+  } catch (err) {
+    alert('Error generating PDF: ' + err.message);
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }
+};
+
+window.downloadRegisterPDF = async function(index) {
+  const btn = event.target;
+  const orig = btn.innerHTML;
+  btn.innerHTML = 'Generating…<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    const register = SESSION_STATE.registers[index];
+    const coverPDF = await generateCoverSheetPDF(register);
+    const regPDF   = await generateRegisterPDF(register);
+    const pages = regPDF.internal.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      coverPDF.addPage();
+      regPDF.setPage(p);
+      coverPDF.internal.pages[coverPDF.internal.getNumberOfPages()] = regPDF.internal.pages[p];
+    }
+    const filename = `FP10_Register_${register.departmentCode}_${register.serials[0]}-${register.serials[register.serials.length - 1]}.pdf`;
+    coverPDF.save(filename);
+    btn.innerHTML = '✓ Downloaded';
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+  } catch (err) {
+    alert('Error generating PDF: ' + err.message);
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }
+};
+
+// ============================================================================
+// INITIALISATION
+// ============================================================================
+
+(async function init() {
+  // Set session date
+  document.getElementById('sessionDate').textContent = SESSION_STATE.sessionDate;
+
+  // Restore persisted pad count
+  padCountInput.value = loadLastPadCount();
+
+  // The name is no longer typed — it comes from the logged-in account.
+  await TRUST_READY;
+  const fullName = CURRENT_PROFILE?.fullName || '';
+  SESSION_STATE.generatedBy = fullName;
+  const nameField = document.getElementById('generatedBy');
+  nameField.value = fullName;
+  nameField.readOnly = true;
+  nameField.disabled = true;
+  nameField.style.background = 'var(--bg-alt)';
+  nameField.style.color = 'var(--text-muted)';
+  nameField.style.cursor = 'not-allowed';
+
+  loadRejectedHncRegisters();
+})();
+
+async function loadRejectedHncRegisters() {
+  const card = document.getElementById('rejectedHncCard');
+  const countEl = document.getElementById('rejectedHncCount');
+  if (!card) return;
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', { own_only: true });
+    let count = 0;
+    (sessions || []).forEach(s => {
+      if (s.app !== 'hnc') return;
+      (s.register_log || []).forEach(r => {
+        if (r.rejected && !r.voided && !r.verified) count++;
+      });
+    });
+    if (!count) { card.style.display = 'none'; return; }
+    countEl.textContent = count === 1 ? '1 register' : `${count} registers`;
+    card.style.display = 'block';
+  } catch (err) {
+    card.style.display = 'none';
+  }
+}
+
+// ── About modal ──────────────────────────────────────────────────────────────
+window.openAbout = function() {
+  const m = document.getElementById('aboutModal');
+  m.style.display = 'flex';
+};
+window.closeAbout = function() {
+  document.getElementById('aboutModal').style.display = 'none';
+};
+// ── How to Use modal ─────────────────────────────────────────────────────────
+window.openHowTo = function() {
+  document.getElementById('howToModal').style.display = 'flex';
+};
+window.closeHowTo = function() {
+  document.getElementById('howToModal').style.display = 'none';
+};
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('aboutModal').style.display === 'flex') closeAbout();
+    if (document.getElementById('howToModal').style.display === 'flex') closeHowTo();
+  }
+});
+</script>
+</body>
+</html>

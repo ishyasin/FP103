@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Corrections Needed — FP10 Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy: #1b3a6b;
+    --navy-dark: #122d56;
+    --magenta: #e8176e;
+    --magenta-dark: #c4115c;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #d0d5dd;
+    --text: #1a1f36;
+    --text-muted: #5a6278;
+    --text-hint: #9aa0b4;
+    --green: #00843d;
+    --green-pale: #d4edda;
+    --green-pale-text: #155724;
+    --red: #c0003c;
+    --red-pale: #f8d7da;
+    --red-pale-text: #721c24;
+    --shadow: 0 2px 6px rgba(27,58,107,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Fira Sans', Arial, sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--navy);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .gdg-text-logo{display:flex;align-items:baseline;gap:6px;line-height:1;}
+  .gdg-text-logo-main{font-size:17px;font-weight:700;color:#fff;}
+  .gdg-text-logo-sub{font-size:12px;font-weight:400;color:rgba(255,255,255,0.65);}
+  .btn-header{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:7px 14px;border-radius:5px;font-size:0.85em;font-weight:600;cursor:pointer;}
+  .btn-header:hover{background:rgba(255,255,255,0.1);}
+
+  main{max-width:820px;margin:0 auto;padding:32px 24px 60px;}
+  h1{font-size:1.5em;color:var(--navy);margin-bottom:4px;}
+  .subtitle{color:var(--text-muted);font-size:0.9em;margin-bottom:24px;}
+
+  .card{background:var(--surface);border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);border:1px solid var(--border);}
+  .empty-state{color:var(--text-hint);font-size:0.9em;padding:40px 20px;text-align:center;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:0.76em;font-weight:700;background:#f9d5b0;color:#8a5000;}
+  .app-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.72em;font-weight:700;letter-spacing:0.03em;background:var(--navy);color:#fff;margin-right:8px;}
+
+  .reason-box{background:#fdecef;border-left:3px solid var(--red);padding:10px 12px;border-radius:0 6px 6px 0;font-size:0.86em;margin:10px 0 16px;}
+  .reason-box strong{color:var(--red-pale-text);}
+
+  .rejected-banner{border:2px solid var(--red);border-radius:8px;overflow:hidden;margin-bottom:4px;}
+  .rejected-banner-top{background:var(--red);padding:6px 12px;display:flex;justify-content:space-between;align-items:center;}
+  .rejected-flag{color:#fff;font-weight:800;font-size:0.8em;letter-spacing:0.05em;}
+  .rejected-banner-detail{padding:12px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;}
+  .rb-code{font-weight:800;font-size:1.1em;color:var(--navy);}
+  .rb-range{font-family:'Courier New', monospace;font-weight:700;font-size:0.95em;color:var(--text);}
+  .rb-total{color:var(--text-muted);font-size:0.9em;}
+
+  .reg-row{border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px;}
+  .reg-row--rejected{border-color:var(--red);background:#fffafb;}
+  .reg-row-summary{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .badge-rejected{background:var(--red-pale);color:var(--red-pale-text);}
+
+  label{display:block;font-size:0.8em;font-weight:600;color:var(--text-muted);margin-bottom:4px;}
+  input{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:0.92em;font-family:inherit;margin-bottom:12px;}
+  input:focus{outline:none;border-color:var(--magenta);box-shadow:0 0 0 3px rgba(232,23,110,0.1);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  button.btn-primary{background:var(--magenta);color:#fff;border:none;padding:11px 18px;border-radius:6px;font-weight:700;font-size:0.88em;cursor:pointer;}
+  button.btn-primary:hover:not(:disabled){background:var(--magenta-dark);}
+  button.btn-primary:disabled{opacity:0.55;cursor:not-allowed;}
+  button.btn-secondary{background:#fff;color:var(--navy);border:1px solid var(--border);padding:10px 16px;border-radius:6px;font-weight:600;font-size:0.86em;cursor:pointer;}
+  button.btn-secondary:hover{background:var(--bg);}
+
+  .preview-box{background:#eef4fb;border:1px solid #b3c8e8;border-radius:6px;padding:12px 14px;margin:10px 0 16px;font-size:0.88em;}
+  .preview-box .total{font-size:1.3em;font-weight:800;color:var(--navy);}
+
+  .error{background:var(--red-pale);color:var(--red-pale-text);padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
+  .error.show{display:block;}
+  .success{background:var(--green-pale);color:var(--green-pale-text);padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
+  .success.show{display:block;}
+  .not-authorised{max-width:480px;margin:80px auto;text-align:center;color:var(--text-muted);}
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:4px;height:32px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+    <div class="gdg-text-logo">
+      <span class="gdg-text-logo-main">GD&amp;G</span><span class="gdg-text-logo-sub">Special Projects™ — Corrections</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-header" onclick="window.location.href='index.html'">Back to app</button>
+    <button class="btn-header" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div class="empty-state">Loading…</div>
+</main>
+
+<script>
+let ME = null;
+
+async function init() {
+  const session = await requireSession();
+  if (!session) return;
+  ME = await getMyProfile();
+
+  if (!ME || (ME.role !== 'user' && !ME.isVerifier && !ME.isPharmacist)) {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="not-authorised">
+        <h1 style="margin-bottom:10px;">Not authorised</h1>
+        <p>This page is only for accounts that generate FP10 documents.</p>
+      </div>`;
+    return;
+  }
+
+  await load();
+}
+
+let ALL_SESSIONS = [];
+let CORRECTION_COUNTER = 0;
+
+async function load() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="empty-state">Loading…</div>';
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', { own_only: true });
+    ALL_SESSIONS = (sessions || []).filter(s => (s.register_log || []).length > 0);
+    render();
+  } catch (err) {
+    main.innerHTML = `<div class="empty-state">Couldn't load your sessions.</div>`;
+  }
+}
+
+function render() {
+  const main = document.getElementById('mainContent');
+
+  if (!ALL_SESSIONS.length) {
+    main.innerHTML = `
+      <h1>My Sessions</h1>
+      <p class="subtitle">Everything you've generated shows up here, with its check status.</p>
+      <div class="card"><div class="empty-state">Nothing generated yet.</div></div>`;
+    return;
+  }
+
+  const totalRejected = ALL_SESSIONS.reduce((n, s) => n + (s.register_log || []).filter(r => r.rejected && !r.voided && !r.verified).length, 0);
+
+  main.innerHTML = `
+    <h1>My Sessions</h1>
+    <p class="subtitle">${totalRejected > 0 ? `${totalRejected} entr${totalRejected === 1 ? 'y needs' : 'ies need'} correcting. ` : ''}Every register you've generated, grouped by session, showing what's verified and what still needs work.</p>
+    <div id="globalError" class="error"></div>
+    <div id="globalSuccess" class="success"></div>
+    <div id="sessionsList"></div>
+  `;
+
+  const list = document.getElementById('sessionsList');
+  ALL_SESSIONS.forEach((s, sIdx) => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.id = `session-${sIdx}`;
+    el.innerHTML = sessionCardHtml(s, sIdx);
+    list.appendChild(el);
+    wireUpSession(s, sIdx);
+  });
+}
+
+function statusBadgeFor(r) {
+  if (r.voided) return '<span class="badge badge-voided">Voided</span>';
+  if (r.verified) return '<span class="badge badge-verified">Verified</span>';
+  if (r.rejected) return '<span class="badge badge-rejected">Needs correction</span>';
+  return '<span class="badge badge-pending">Awaiting check</span>';
+}
+
+function sessionCardHtml(s, sIdx) {
+  const registers = s.register_log || [];
+  const appLabel = s.app === 'ss' ? 'FP10SS' : 'FP10HNC';
+  const verifiedCount = registers.filter(r => r.verified && !r.voided).length;
+  const rejectedCount = registers.filter(r => r.rejected && !r.voided && !r.verified).length;
+  const pendingCount = registers.filter(r => !r.verified && !r.rejected && !r.voided).length;
+
+  const rows = registers.map((r, rIdx) => {
+    const p = r.full_payload || r.payload || {};
+    const needsCorrection = r.rejected && !r.voided && !r.verified;
+    const rowId = `reg-${sIdx}-${rIdx}`;
+    return `
+      <div class="reg-row ${needsCorrection ? 'reg-row--rejected' : ''}">
+        <div class="reg-row-summary">
+          <span class="rb-range">${escapeHtml(String(p.first ?? '—'))} → ${escapeHtml(String(p.last ?? '—'))}</span>
+          <span class="rb-total">${escapeHtml(String(p.total ?? '—'))} ${s.app === 'ss' ? 'sheets' : 'prescriptions'}</span>
+          ${statusBadgeFor(r)}
+          ${needsCorrection ? `<button class="btn-secondary" id="toggle-${rowId}" style="margin-left:auto;">Correct this register</button>` : ''}
+        </div>
+        ${needsCorrection ? `<div class="reason-box">Sent back: ${escapeHtml(r.rejection_reason || '—')}</div>` : ''}
+        ${needsCorrection ? `<div id="form-${rowId}" style="display:none;margin-top:10px;"></div>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div>
+        <span class="app-tag" style="${s.app === 'hnc' ? 'background:var(--magenta);' : ''}">${appLabel}</span>
+        <strong>${escapeHtml(s.cost_centre || '—')}</strong>
+        <div style="color:var(--text-muted);font-size:0.8em;">Submitted ${escapeHtml(new Date(s.submitted_at).toLocaleString('en-GB'))}</div>
+      </div>
+      <div style="font-size:0.82em;color:var(--text-muted);text-align:right;">
+        ${verifiedCount ? `<span style="color:var(--green-pale-text);">${verifiedCount} verified</span>` : ''}
+        ${verifiedCount && (rejectedCount || pendingCount) ? ' · ' : ''}
+        ${rejectedCount ? `<span style="color:var(--red-pale-text);">${rejectedCount} need${rejectedCount === 1 ? 's' : ''} correcting</span>` : ''}
+        ${rejectedCount && pendingCount ? ' · ' : ''}
+        ${pendingCount ? `<span>${pendingCount} awaiting check</span>` : ''}
+      </div>
+    </div>
+    ${rows}
+  `;
+}
+
+function wireUpSession(s, sIdx) {
+  const registers = s.register_log || [];
+  registers.forEach((r, rIdx) => {
+    if (!(r.rejected && !r.voided && !r.verified)) return;
+    const rowId = `reg-${sIdx}-${rIdx}`;
+    const toggleBtn = document.getElementById(`toggle-${rowId}`);
+    if (!toggleBtn) return;
+    toggleBtn.addEventListener('click', () => {
+      const formContainer = document.getElementById(`form-${rowId}`);
+      if (formContainer.style.display === 'none') {
+        const idx = CORRECTION_COUNTER++;
+        const entry = { session: s, register: r };
+        formContainer.innerHTML = s.app === 'ss' ? ssCorrectionHtml(entry, idx, rowId) : hncCorrectionHtml(entry, idx, rowId);
+        formContainer.style.display = 'block';
+        wireUpEntry(entry, idx, rowId);
+        toggleBtn.textContent = 'Hide';
+      } else {
+        formContainer.style.display = 'none';
+        toggleBtn.textContent = 'Correct this register';
+      }
+    });
+  });
+}
+
+function ssCorrectionHtml(entry, idx) {
+  const p = entry.register.full_payload || {};
+  const reassignedNote = entry.session.user_id !== ME.id
+    ? `<div style="background:#fff3cd;color:#8a6416;padding:8px 12px;border-radius:6px;font-size:0.85em;margin-bottom:12px;">↪ Reassigned to you by a Trust Admin — originally generated by ${escapeHtml(entry.session.generated_by || 'someone else')}.</div>`
+    : '';
+  return `
+    ${reassignedNote}
+    <label for="dept-${idx}">Department / FP10 code</label>
+    <input type="text" id="dept-${idx}" value="${escapeHtml(p.deptCode || '')}" />
+
+    <div class="field-row">
+      <div>
+        <label for="first-${idx}">First serial (top of stack)</label>
+        <input type="text" id="first-${idx}" value="${escapeHtml(String(p.first ?? ''))}" />
+      </div>
+      <div>
+        <label for="second-${idx}">Second serial</label>
+        <input type="text" id="second-${idx}" value="${escapeHtml(String(p.second ?? ''))}" />
+      </div>
+      <div>
+        <label for="third-${idx}">Third serial</label>
+        <input type="text" id="third-${idx}" value="${escapeHtml(String(p.third ?? ''))}" />
+      </div>
+      <div>
+        <label for="last-${idx}">Last serial (bottom of stack)</label>
+        <input type="text" id="last-${idx}" value="${escapeHtml(String(p.last ?? ''))}" />
+      </div>
+    </div>
+
+    <div id="preview-${idx}"></div>
+    <div id="error-${idx}" class="error"></div>
+    <button class="btn-secondary" id="preview-btn-${idx}">Check total</button>
+    <button class="btn-primary" id="resubmit-btn-${idx}" disabled>Resubmit for checking</button>
+  `;
+}
+
+function hncCorrectionHtml(entry, idx) {
+  const p = entry.register.full_payload || {};
+  const reassignedNote = entry.session.user_id !== ME.id
+    ? `<div style="background:#fff3cd;color:#8a6416;padding:8px 12px;border-radius:6px;font-size:0.85em;margin-bottom:12px;">↪ Reassigned to you by a Trust Admin — originally generated by ${escapeHtml(entry.session.generated_by || 'someone else')}.</div>`
+    : '';
+  return `
+    ${reassignedNote}
+    <label for="dept-${idx}">Department / cost centre</label>
+    <input type="text" id="dept-${idx}" value="${escapeHtml(p.deptCode || '')}" />
+
+    <div class="field-row">
+      <div>
+        <label for="first-${idx}">First serial</label>
+        <input type="text" id="first-${idx}" value="${escapeHtml(String(p.first ?? ''))}" />
+      </div>
+      <div>
+        <label for="second-${idx}">Second serial</label>
+        <input type="text" id="second-${idx}" value="${escapeHtml(String((p.serials && p.serials[1]) ?? ''))}" />
+      </div>
+      <div>
+        <label for="third-${idx}">Third serial</label>
+        <input type="text" id="third-${idx}" value="${escapeHtml(String((p.serials && p.serials[2]) ?? ''))}" />
+      </div>
+      <div>
+        <label for="padcount-${idx}">Number of prescriptions in this pad</label>
+        <input type="number" id="padcount-${idx}" value="${escapeHtml(String(p.total ?? ''))}" />
+      </div>
+    </div>
+
+    <div id="preview-${idx}"></div>
+    <div id="error-${idx}" class="error"></div>
+    <button class="btn-secondary" id="preview-btn-${idx}">Check pattern &amp; preview</button>
+    <button class="btn-primary" id="resubmit-btn-${idx}" disabled>Resubmit for checking</button>
+  `;
+}
+
+function wireUpEntry(entry, idx) {
+  const isSS = entry.session.app === 'ss';
+  document.getElementById(`preview-btn-${idx}`).addEventListener('click', () => isSS ? previewSS(entry, idx) : previewHNC(entry, idx));
+  document.getElementById(`resubmit-btn-${idx}`).addEventListener('click', () => isSS ? resubmitSS(entry, idx) : resubmitHNC(entry, idx));
+
+  // Any edit after a preview invalidates it — force a fresh check before
+  // allowing resubmit, so what gets sent always matches what was verified.
+  ['dept', 'first', 'second', 'third', 'last', 'padcount'].forEach(field => {
+    const el = document.getElementById(`${field}-${idx}`);
+    if (el) el.addEventListener('input', () => {
+      document.getElementById(`resubmit-btn-${idx}`).disabled = true;
+      document.getElementById(`preview-${idx}`).innerHTML = '';
+    });
+  });
+}
+
+function val(id) { return document.getElementById(id).value.trim(); }
+function showEntryError(idx, msg) {
+  const el = document.getElementById(`error-${idx}`);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function clearEntryError(idx) {
+  document.getElementById(`error-${idx}`).classList.remove('show');
+}
+
+async function previewSS(entry, idx) {
+  clearEntryError(idx);
+  const first = val(`first-${idx}`), second = val(`second-${idx}`), third = val(`third-${idx}`), last = val(`last-${idx}`);
+  if (![first, second, third, last].every(s => /^\d{11}$/.test(s))) {
+    showEntryError(idx, 'All four serial numbers must be exactly 11 digits.');
+    return;
+  }
+  const btn = document.getElementById(`preview-btn-${idx}`);
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const { total } = await callFp10Logic('count-stack', {
+      first: Number(first), second: Number(second), third: Number(third), last: Number(last),
+    });
+    document.getElementById(`preview-${idx}`).innerHTML = `
+      <div class="preview-box">Total sheets: <span class="total">${total}</span></div>`;
+    document.getElementById(`resubmit-btn-${idx}`).disabled = false;
+  } catch (err) {
+    showEntryError(idx, err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check total';
+  }
+}
+
+async function resubmitSS(entry, idx) {
+  clearEntryError(idx);
+  const btn = document.getElementById(`resubmit-btn-${idx}`);
+  btn.disabled = true; btn.textContent = 'Resubmitting…';
+  try {
+    await callFp10Logic('resubmit-register', {
+      register_id: entry.register.id,
+      first: Number(val(`first-${idx}`)), second: Number(val(`second-${idx}`)),
+      third: Number(val(`third-${idx}`)), last: Number(val(`last-${idx}`)),
+      deptCode: val(`dept-${idx}`),
+    });
+    onEntryResubmitted(idx);
+  } catch (err) {
+    showEntryError(idx, err.message);
+    btn.disabled = false; btn.textContent = 'Resubmit for checking';
+  }
+}
+
+async function previewHNC(entry, idx) {
+  clearEntryError(idx);
+  const first = val(`first-${idx}`), second = val(`second-${idx}`), third = val(`third-${idx}`);
+  const padCount = parseInt(val(`padcount-${idx}`));
+  if (![first, second, third].every(s => /^\d{11}$/.test(s))) {
+    showEntryError(idx, 'The first, second, and third serials must each be exactly 11 digits.');
+    return;
+  }
+  if (!padCount || padCount < 3 || padCount > 200) {
+    showEntryError(idx, 'Number of prescriptions must be between 3 and 200.');
+    return;
+  }
+  const btn = document.getElementById(`preview-btn-${idx}`);
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const { valid } = await callFp10Logic('validate-pattern', {
+      first: Number(first), second: Number(second), third: Number(third),
+    });
+    if (!valid) {
+      showEntryError(idx, "The first three serial numbers don't follow a recognised FP10 pattern. Check they're entered in order from the top of the pad.");
+      return;
+    }
+    const { serials } = await callFp10Logic('generate-pad', {
+      first: Number(first), second: Number(second), padCount,
+    });
+    document.getElementById(`preview-${idx}`).innerHTML = `
+      <div class="preview-box">Pattern valid — <span class="total">${serials.length}</span> serials, ${serials[0]} → ${serials[serials.length - 1]}</div>`;
+    document.getElementById(`resubmit-btn-${idx}`).disabled = false;
+  } catch (err) {
+    showEntryError(idx, err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check pattern & preview';
+  }
+}
+
+async function resubmitHNC(entry, idx) {
+  clearEntryError(idx);
+  const btn = document.getElementById(`resubmit-btn-${idx}`);
+  btn.disabled = true; btn.textContent = 'Resubmitting…';
+  const deptCode = val(`dept-${idx}`);
+  try {
+    await callFp10Logic('resubmit-register', {
+      register_id: entry.register.id,
+      first: Number(val(`first-${idx}`)), second: Number(val(`second-${idx}`)), third: Number(val(`third-${idx}`)),
+      padCount: parseInt(val(`padcount-${idx}`)),
+      deptCode, costCentre: deptCode,
+    });
+    onEntryResubmitted(idx);
+  } catch (err) {
+    showEntryError(idx, err.message);
+    btn.disabled = false; btn.textContent = 'Resubmit for checking';
+  }
+}
+
+function onEntryResubmitted() {
+  const successBox = document.getElementById('globalSuccess');
+  successBox.textContent = 'Resubmitted — back with a Technician for checking.';
+  successBox.classList.add('show');
+  setTimeout(() => successBox.classList.remove('show'), 4000);
+  load(); // reload so the session's status updates everywhere it's shown
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>

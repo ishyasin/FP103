@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Governance — FP10 Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+
+  :root {
+    --navy: #1b3a6b;
+    --navy-dark: #122d56;
+    --magenta: #e8176e;
+    --magenta-dark: #c4115c;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #d0d5dd;
+    --text: #1a1f36;
+    --text-muted: #5a6278;
+    --text-hint: #9aa0b4;
+    --green: #00843d;
+    --green-pale: #d4edda;
+    --green-pale-text: #155724;
+    --red: #c0003c;
+    --red-pale: #f8d7da;
+    --red-pale-text: #721c24;
+    --shadow: 0 2px 6px rgba(27,58,107,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Fira Sans', Arial, sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--navy);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .gdg-text-logo{display:flex;align-items:baseline;gap:6px;line-height:1;}
+  .gdg-text-logo-main{font-size:17px;font-weight:700;color:#fff;}
+  .gdg-text-logo-sub{font-size:12px;font-weight:400;color:rgba(255,255,255,0.65);}
+  .btn-header{background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;padding:7px 14px;border-radius:5px;font-size:0.85em;font-weight:600;cursor:pointer;}
+  .btn-header:hover{background:rgba(255,255,255,0.1);}
+
+  main{max-width:1150px;margin:0 auto;padding:32px 24px 60px;}
+  h1{font-size:1.5em;color:var(--navy);margin-bottom:4px;}
+  .subtitle{color:var(--text-muted);font-size:0.9em;margin-bottom:24px;}
+
+  .card{background:#fff;border-radius:8px;padding:20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,0.08);border:1px solid var(--border);}
+  .search-grid{display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;align-items:end;}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  label{font-size:0.78em;font-weight:600;color:var(--text-muted);}
+  input{padding:9px 11px;border:1px solid #d0d5dd;border-radius:6px;font-size:0.88em;font-family:inherit;}
+  input:focus{outline:none;border-color:var(--magenta);box-shadow:0 0 0 3px rgba(232,23,110,0.1);}
+
+  button.btn-primary{background:var(--magenta);color:#fff;border:none;padding:10px 20px;border-radius:6px;font-weight:700;font-size:0.87em;cursor:pointer;}
+  button.btn-primary:hover:not(:disabled){background:var(--magenta-dark);}
+  button.btn-secondary{background:#fff;color:var(--navy);border:1px solid #d0d5dd;padding:9px 16px;border-radius:6px;font-weight:600;font-size:0.85em;cursor:pointer;}
+  button.btn-secondary:hover{background:var(--bg);}
+
+  table{width:100%;border-collapse:collapse;font-size:0.86em;}
+  th{text-align:left;padding:9px 8px;color:var(--text-muted);font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.03em;border-bottom:2px solid var(--border);}
+  td{padding:9px 8px;border-bottom:1px solid #eef0f4;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr.voided td{opacity:0.5;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:0.76em;font-weight:700;white-space:nowrap;}
+  .badge-pending{background:#fff3cd;color:#8a6416;}
+  .badge-verified{background:var(--green-pale);color:var(--green-pale-text);}
+  .badge-voided{background:var(--red-pale);color:var(--red-pale-text);}
+
+  .empty-state{color:#8a91a3;font-size:0.9em;padding:20px;text-align:center;}
+  .not-authorised{max-width:480px;margin:80px auto;text-align:center;color:var(--text-muted);}
+  .result-count{color:var(--text-muted);font-size:0.85em;margin-bottom:12px;}
+</style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+
+<header>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:4px;height:32px;background:var(--magenta);border-radius:2px;flex-shrink:0;"></div>
+    <div class="gdg-text-logo">
+      <span class="gdg-text-logo-main">GD&amp;G</span><span class="gdg-text-logo-sub">Special Projects™ — Governance</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-header" onclick="window.location.href='index.html'">Back to app</button>
+    <button class="btn-header" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div class="empty-state">Loading…</div>
+</main>
+
+<script>
+let ME = null;
+
+async function init() {
+  const session = await requireSession();
+  if (!session) return;
+
+  ME = await getMyProfile();
+  const main = document.getElementById('mainContent');
+
+  if (!ME || (!ME.isAuditor && !ME.isSuperuser)) {
+    main.innerHTML = `
+      <div class="not-authorised">
+        <h1 style="margin-bottom:10px;">Not authorised</h1>
+        <p>This page is only available to Governance accounts.</p>
+      </div>`;
+    return;
+  }
+
+  render();
+  runSearch(); // show everything for the trust by default
+}
+
+function render() {
+  document.getElementById('mainContent').innerHTML = `
+    <h1>Governance</h1>
+    <p class="subtitle">Search every generated FP10SS/FP10HNC entry by site, person, serial number, department, or date.</p>
+
+    <div class="card">
+      <div class="search-grid">
+        <div class="form-group">
+          <label for="siteInput">Site</label>
+          <select id="siteInput"><option value="">All sites</option></select>
+        </div>
+        <div class="form-group">
+          <label for="personInput">Person</label>
+          <input type="text" id="personInput" placeholder="e.g. J Smith" />
+        </div>
+        <div class="form-group">
+          <label for="serialInput">Serial number</label>
+          <input type="text" id="serialInput" placeholder="e.g. 12345678901" inputmode="numeric" />
+        </div>
+        <div class="form-group">
+          <label for="deptInput">Department / cost centre</label>
+          <input type="text" id="deptInput" placeholder="e.g. RYR73" />
+        </div>
+        <div class="form-group">
+          <label for="dateFromInput">From</label>
+          <input type="date" id="dateFromInput" />
+        </div>
+        <div class="form-group">
+          <label for="dateToInput">To</label>
+          <input type="date" id="dateToInput" />
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;">
+        <button class="btn-primary" id="searchBtn">Search</button>
+        <button class="btn-secondary" id="clearBtn">Clear</button>
+      </div>
+    </div>
+
+    <div id="resultsArea"><div class="empty-state">Loading…</div></div>
+  `;
+
+  document.getElementById('searchBtn').addEventListener('click', runSearch);
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    document.getElementById('siteInput').value = '';
+    document.getElementById('personInput').value = '';
+    document.getElementById('serialInput').value = '';
+    document.getElementById('deptInput').value = '';
+    document.getElementById('dateFromInput').value = '';
+    document.getElementById('dateToInput').value = '';
+    runSearch();
+  });
+
+  loadSitesIntoFilter();
+}
+
+async function loadSitesIntoFilter() {
+  try {
+    const { sites } = await callAdminUsers('list-sites', {});
+    const select = document.getElementById('siteInput');
+    if (select && sites.length) {
+      select.insertAdjacentHTML('beforeend', sites.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join(''));
+    }
+  } catch (err) { /* non-fatal — search still works without the filter populated */ }
+}
+
+async function runSearch() {
+  const resultsArea = document.getElementById('resultsArea');
+  resultsArea.innerHTML = '<div class="empty-state">Searching…</div>';
+
+  const payload = {};
+  const site = document.getElementById('siteInput')?.value;
+  const person = document.getElementById('personInput')?.value.trim();
+  const serial = document.getElementById('serialInput')?.value.trim();
+  const dept = document.getElementById('deptInput')?.value.trim();
+  const dateFrom = document.getElementById('dateFromInput')?.value;
+  const dateTo = document.getElementById('dateToInput')?.value;
+  if (site) payload.site_id = site;
+  if (person) payload.person = person;
+  if (serial) payload.serial = serial;
+  if (dept) payload.department = dept;
+  if (dateFrom) payload.date_from = new Date(dateFrom + 'T00:00:00').toISOString();
+  if (dateTo) payload.date_to = new Date(dateTo + 'T23:59:59').toISOString();
+
+  try {
+    const { sessions } = await callAdminUsers('list-sessions', payload);
+    renderResults(sessions);
+  } catch (err) {
+    resultsArea.innerHTML = `<div class="empty-state">Couldn't search: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderResults(sessions) {
+  const resultsArea = document.getElementById('resultsArea');
+  const rows = [];
+  sessions.forEach(s => (s.register_log || []).forEach(r => rows.push({ s, r })));
+
+  if (!rows.length) {
+    resultsArea.innerHTML = '<div class="empty-state">No matching registers.</div>';
+    return;
+  }
+  resultsArea.innerHTML = `
+    <div class="result-count">${rows.length} result${rows.length === 1 ? '' : 's'}</div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Site</th><th>App</th><th>Cost Centre</th><th>Generated By</th>
+            <th>First</th><th>Last</th><th>Total</th><th>Checked By</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${rows.map(({ s, r }) => rowHtml(s, r)).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function rowHtml(s, r) {
+  const p = r.payload || {};
+  const date = new Date(r.created_at).toLocaleString('en-GB');
+  const appLabel = s.app === 'ss' ? 'FP10SS' : 'FP10HNC';
+  const status = r.voided ? '<span class="badge badge-voided">Voided</span>'
+    : r.verified ? '<span class="badge badge-verified">Verified</span>'
+    : r.rejected ? '<span class="badge badge-voided" style="background:#f8d7da;color:#a01c2e;">Rejected</span>'
+    : '<span class="badge badge-pending">Pending</span>';
+  const checkedBy = r.verified
+    ? `${escapeHtml(r.verified_by_name || '—')}<br><span style="color:#8a91a3;font-size:0.8em;">${escapeHtml(new Date(r.verified_at).toLocaleString('en-GB'))}</span>`
+    : '<span style="color:#8a91a3;">—</span>';
+
+  return `
+    <tr class="${r.voided ? 'voided' : ''}">
+      <td>${escapeHtml(date)}</td>
+      <td>${escapeHtml(s.site_name || '—')}</td>
+      <td>${appLabel}</td>
+      <td>${escapeHtml(p.deptCode || s.cost_centre || '—')}</td>
+      <td>${escapeHtml(s.generated_by || '—')}</td>
+      <td>${escapeHtml(String(p.first ?? '—'))}</td>
+      <td>${escapeHtml(String(p.last ?? '—'))}</td>
+      <td>${escapeHtml(String(p.total ?? '—'))}</td>
+      <td>${checkedBy}</td>
+      <td>${status}</td>
+    </tr>`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FP10 Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:'Fira Sans', Arial, sans-serif;height:100vh;background:#1b3a6b;color:#1a1a2e;display:flex;flex-direction:column;overflow:hidden}
+
+  /* ── Header ── */
+  header{background:#1b3a6b;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;animation:slideDown 0.5s ease both;position:relative;z-index:20}
+  .about-btn{background:#e8176e;border:none;color:#fff;font-family:'Fira Sans', Arial, sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:9px 22px;border-radius:2px;cursor:pointer;transition:background 0.2s,transform 0.15s}
+  .nav-badge{position:absolute;top:-6px;right:-6px;background:#ffb020;color:#1b3a6b;font-size:11px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 0 0 2px #1b3a6b;}
+  .about-btn:hover{background:#c4115c;transform:translateY(-1px)}
+
+  /* ── Text-only GD&G logo (replaces former image logo) ── */
+  .gdg-text-logo{display:flex;align-items:baseline;gap:6px;line-height:1;white-space:nowrap}
+  .gdg-text-logo-main{font-size:17px;font-weight:700;color:#fff;letter-spacing:0.01em}
+  .gdg-text-logo-sub{font-size:12px;font-weight:400;color:rgba(255,255,255,0.65);letter-spacing:0.02em}
+  .gdg-text-logo-sub sup{font-size:0.7em;color:rgba(255,255,255,0.5)}
+  .brand-text{font-weight:700}
+  .brand-text .brand-sub{font-weight:400;opacity:0.8}
+
+  /* ── Hero band with triangles ── */
+  .hero-band{background:#1b3a6b;position:relative;overflow:hidden;padding:52px 32px 100px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1}
+  .hero-band::before{content:'';position:absolute;bottom:-1px;left:-5%;width:42%;height:165px;background:#e8176e;clip-path:polygon(0 100%,100% 100%,15% 0);opacity:0.9;transform-origin:bottom left}
+  .hero-band::after{content:'';position:absolute;bottom:-1px;left:8%;width:32%;height:125px;background:#2a52a0;clip-path:polygon(5% 100%,95% 100%,50% 0);opacity:0.7;transform-origin:bottom center}
+  .tri-right{position:absolute;bottom:-1px;right:-5%;width:38%;height:145px;background:#1557a0;clip-path:polygon(100% 100%,0 100%,85% 0);opacity:0.8;transform-origin:bottom right}
+  .tri-right2{position:absolute;bottom:-1px;right:10%;width:27%;height:105px;background:#e8176e;clip-path:polygon(95% 100%,5% 100%,60% 0);opacity:0.5;transform-origin:bottom center}
+
+  .psp-logo-wrap{opacity:0;animation:fadeUp 0.6s 0.3s ease both;margin-bottom:28px;position:relative;z-index:5}
+  .psp-logo-wrap svg{width:300px;height:auto}
+  .app-name{font-size:clamp(42px,7vw,72px);font-weight:700;color:#fff;letter-spacing:-0.02em;line-height:1;opacity:0;animation:fadeUp 0.6s 0.55s ease both;position:relative;z-index:5}
+  .app-name span{color:#e8176e}
+  .rule{width:48px;height:4px;background:#e8176e;margin:20px auto;opacity:0;animation:fadeUp 0.6s 0.7s ease both;position:relative;z-index:5}
+  .tagline{font-size:14px;font-weight:400;color:rgba(255,255,255,0.75);letter-spacing:0.04em;opacity:0;animation:fadeUp 0.6s 0.75s ease both;position:relative;z-index:5}
+
+  /* ── Magenta launch band ── */
+  .launch-band{background:#e8176e;padding:20px 32px;display:flex;justify-content:center;align-items:center;gap:24px;position:relative;z-index:10;flex-wrap:wrap}
+  .launch-btn-wrap{display:inline-block;opacity:0;animation:fadeUp 0.6s 1.5s ease both}
+  .launch-btn{background:#fff;color:#e8176e;font-family:'Fira Sans', Arial, sans-serif;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:14px 40px;border-radius:2px;border:none;cursor:pointer;transition:background 0.2s,color 0.2s,transform 0.15s;box-shadow:0 2px 12px rgba(0,0,0,0.15)}
+  .launch-btn:hover{background:#1b3a6b;color:#fff;transform:translateY(-1px)}
+  .launch-btn--ss{color:#e8176e}
+  .launch-btn--ss:hover{background:#e8176e;color:#fff}
+  .launch-btn--hnc{color:#0e8a76}
+  .launch-btn--hnc:hover{background:#0e8a76;color:#fff}
+  .btn-tooltip{display:flex;align-items:center;gap:8px;min-height:20px;margin-top:14px;padding:8px 16px;border:1px solid rgba(255,255,255,0.4);border-radius:4px;background:rgba(255,255,255,0.08);font-size:13px;font-weight:400;color:rgba(255,255,255,0.9);letter-spacing:0.01em;opacity:0;visibility:hidden;transition:opacity 0.25s ease;position:relative;z-index:5}
+  .btn-tooltip.visible{opacity:1;visibility:visible}
+
+  /* ── Footer ── */
+  footer{padding:10px 32px;display:flex;justify-content:space-between;align-items:center;background:#122d56;font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.03em;opacity:0;animation:fadeIn 0.6s 1.8s ease both}
+
+  /* ── Modal ── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,50,0.55);z-index:100;align-items:center;justify-content:center;padding:24px}
+  .modal-overlay.open{display:flex}
+  .modal{background:#fff;border-radius:4px;padding:36px;max-width:500px;width:100%;position:relative;border-top:5px solid #e8176e;animation:modalIn 0.22s ease both;max-height:90vh;overflow-y:auto}
+  .modal-tag{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#e8176e;font-weight:700;margin-bottom:8px}
+  .modal h2{font-size:22px;font-weight:700;color:#1b3a6b;margin-bottom:18px}
+  .modal p{font-size:14px;line-height:1.8;color:#555;margin-bottom:12px}
+  .modal .contact{margin-top:18px;padding-top:16px;border-top:1px solid #eee;font-size:13px;color:#666}
+  .modal .contact a{color:#e8176e;font-weight:600;text-decoration:none}
+  .modal .contact a:hover{text-decoration:underline}
+  .modal-ver{margin-top:12px;padding-top:12px;border-top:1px solid #eee;font-size:11px;color:#ccc}
+  .modal-notice{border-left:3px solid #e8176e;padding:10px 14px;background:#fdf2f6;font-size:13px;color:#444;margin:16px 0}
+  .modal-list{list-style:none;padding:0;margin:0 0 12px 0}
+  .modal-list li{font-size:14px;line-height:1.8;color:#555;margin-bottom:14px;padding-left:16px;border-left:3px solid #eee}
+  .modal-list-tag{display:inline-block;font-weight:700;padding:1px 8px;border-radius:3px;font-size:13px;margin-right:2px}
+  .modal-list-tag--hnc{color:#0e8a76;background:#e3f7f3}
+  .modal-list-tag--ss{color:#e8176e;background:#fdeaf2}
+  .modal-support-tag{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#e8176e;font-weight:700;margin-top:16px;margin-bottom:6px}
+  .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#ccc;padding:2px 6px}
+  .modal-close:hover{color:#1b3a6b}
+
+  /* ── Loading bar ── */
+  .loading-bar-wrap{position:fixed;top:0;left:0;width:100%;height:4px;background:rgba(255,255,255,0.15);z-index:9999}
+  .loading-bar{height:100%;width:0%;background:#e8176e;transition:width 0.08s linear;box-shadow:0 0 8px rgba(232,23,110,0.7)}
+
+  /* ── Button pulse attention ── */
+  @keyframes btnPulse{
+    0%{transform:scale(1);box-shadow:0 2px 12px rgba(0,0,0,0.15)}
+    20%{transform:scale(1.06);box-shadow:0 0 0 6px rgba(255,255,255,0.25),0 2px 20px rgba(0,0,0,0.2)}
+    40%{transform:scale(1);box-shadow:0 2px 12px rgba(0,0,0,0.15)}
+    60%{transform:scale(1.04);box-shadow:0 0 0 4px rgba(255,255,255,0.15),0 2px 16px rgba(0,0,0,0.2)}
+    80%{transform:scale(1);box-shadow:0 2px 12px rgba(0,0,0,0.15)}
+    100%{transform:scale(1);box-shadow:0 2px 12px rgba(0,0,0,0.15)}
+  }
+  .launch-btn.pulse{animation:btnPulse 0.9s ease}
+
+  /* ── Triangle drift ── seamless scroll, morph size+shape, staggered pairs ── */
+  /* Each direction has TWO triangles offset by half their duration so one is always visible */
+
+  /* RIGHT-moving pair */
+  @keyframes triRight{
+    0%  {transform:translateX(-120vw) scaleY(1)    scaleX(1);   clip-path:polygon(5% 100%,95% 100%,18% 0%)}
+    25% {transform:translateX(-60vw)  scaleY(1.3)  scaleX(1.15);clip-path:polygon(3% 100%,92% 100%,32% 0%)}
+    50% {transform:translateX(0vw)    scaleY(0.82) scaleX(0.9); clip-path:polygon(7% 100%,97% 100%,22% 0%)}
+    75% {transform:translateX(60vw)   scaleY(1.2)  scaleX(1.2); clip-path:polygon(2% 100%,90% 100%,38% 0%)}
+    100%{transform:translateX(120vw)  scaleY(1)    scaleX(1);   clip-path:polygon(5% 100%,95% 100%,18% 0%)}
+  }
+  /* LEFT-moving pair */
+  @keyframes triLeft{
+    0%  {transform:translateX(120vw)  scaleY(1)    scaleX(1);   clip-path:polygon(95% 100%,5% 100%,62% 0%)}
+    25% {transform:translateX(60vw)   scaleY(0.8)  scaleX(1.25);clip-path:polygon(97% 100%,3% 100%,44% 0%)}
+    50% {transform:translateX(0vw)    scaleY(1.35) scaleX(0.82);clip-path:polygon(92% 100%,8% 100%,70% 0%)}
+    75% {transform:translateX(-60vw)  scaleY(0.9)  scaleX(1.1); clip-path:polygon(98% 100%,4% 100%,55% 0%)}
+    100%{transform:translateX(-120vw) scaleY(1)    scaleX(1);   clip-path:polygon(95% 100%,5% 100%,62% 0%)}
+  }
+
+  /* tri1 and tri2 both go right, offset by half duration */
+  .hero-band::before{
+    left:-5%;width:50%;height:165px;background:#e8176e;opacity:0.9;
+    animation:triRight 180s linear infinite;
+    animation-delay:0s;
+  }
+  .hero-band::after{
+    left:-5%;width:50%;height:125px;background:#2a52a0;opacity:0.7;
+    animation:triRight 180s linear infinite;
+    animation-delay:-90s;
+  }
+  /* tri3 and tri4 both go left, offset by half duration */
+  .tri-right{
+    right:-5%;width:48%;height:145px;background:#1557a0;opacity:0.8;
+    animation:triLeft 216s linear infinite;
+    animation-delay:0s;
+  }
+  .tri-right2{
+    right:-5%;width:36%;height:105px;background:#e8176e;opacity:0.5;
+    animation:triLeft 216s linear infinite;
+    animation-delay:-108s;
+  }
+  /* Extra triangle 3 - right moving, offset by a third */
+  .tri-extra1{
+    position:absolute;bottom:-1px;left:-5%;width:44%;height:150px;background:#2a52a0;opacity:0.55;
+    transform-origin:bottom left;
+    animation:triRight 180s linear infinite;
+    animation-delay:-60s;
+  }
+  /* Extra triangle 4 - left moving, offset by a third */
+  .tri-extra2{
+    position:absolute;bottom:-1px;right:-5%;width:32%;height:118px;background:#1db8a2;opacity:0.4;
+    transform-origin:bottom right;
+    animation:triLeft 216s linear infinite;
+    animation-delay:-72s;
+  }
+
+  /* ── Glowing orbs ── */
+  .orb{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none;opacity:0;animation:orbPulse var(--dur) ease-in-out infinite var(--delay)}
+  .orb1{width:320px;height:320px;background:rgba(232,23,110,0.18);top:10%;left:15%;--dur:7s;--delay:0s}
+  .orb2{width:260px;height:260px;background:rgba(42,82,160,0.22);top:30%;right:10%;--dur:9s;--delay:2s}
+  .orb3{width:200px;height:200px;background:rgba(0,180,160,0.15);bottom:20%;left:40%;--dur:11s;--delay:4s}
+  .orb4{width:180px;height:180px;background:rgba(232,23,110,0.12);bottom:30%;right:25%;--dur:8s;--delay:1s}
+  @keyframes orbPulse{0%{opacity:0;transform:scale(0.9)}40%{opacity:1;transform:scale(1.08)}70%{opacity:0.6;transform:scale(0.95)}100%{opacity:0;transform:scale(0.9)}}
+
+  /* ── Shimmer on launch band ── */
+  @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+  .launch-band::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%);background-size:400px 100%;animation:shimmer 2.8s linear infinite;pointer-events:none}
+  .launch-band{position:relative;overflow:hidden}
+
+  /* ── Floating Particles ── */
+  .particle{position:absolute;border-radius:50%;pointer-events:none;z-index:1}
+  @keyframes floatUp1{0%{transform:translateY(0) translateX(0);opacity:0}10%{opacity:1}90%{opacity:0.6}100%{transform:translateY(-100vh) translateX(20px);opacity:0}}
+  @keyframes floatUp2{0%{transform:translateY(0) translateX(0);opacity:0}10%{opacity:0.7}90%{opacity:0.3}100%{transform:translateY(-100vh) translateX(-30px);opacity:0}}
+  @keyframes floatUp3{0%{transform:translateY(0) translateX(0);opacity:0}15%{opacity:0.9}85%{opacity:0.4}100%{transform:translateY(-100vh) translateX(15px);opacity:0}}
+  @keyframes bobble{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+
+  /* ── Light Beams ── */
+  .light-beam{position:absolute;top:-20%;width:2px;pointer-events:none;z-index:1;border-radius:2px}
+  @keyframes beamFall{0%{transform:translateY(-10%) scaleX(1);opacity:0}15%{opacity:1}85%{opacity:0.6}100%{transform:translateY(120vh) scaleX(1.4);opacity:0}}
+
+  /* ── Glowing Orbs ── */
+  .bg-orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:1}
+  @keyframes orbFloat1{0%{transform:translate(0,0)}25%{transform:translate(40px,-30px)}50%{transform:translate(-20px,50px)}75%{transform:translate(60px,20px)}100%{transform:translate(0,0)}}
+  @keyframes orbFloat2{0%{transform:translate(0,0)}30%{transform:translate(-50px,40px)}60%{transform:translate(30px,-20px)}85%{transform:translate(-30px,30px)}100%{transform:translate(0,0)}}
+  @keyframes orbFloat3{0%{transform:translate(0,0)}20%{transform:translate(30px,40px)}55%{transform:translate(-40px,-30px)}80%{transform:translate(20px,20px)}100%{transform:translate(0,0)}}
+
+  @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes modalIn{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap" style="display:flex;align-items:center;gap:12px;">
+    <div style="width:4px;height:32px;background:#e8176e;border-radius:2px;flex-shrink:0;"></div>
+    <div class="gdg-text-logo">
+      <span class="gdg-text-logo-main">GD&amp;G</span><span class="gdg-text-logo-sub">Special Projects<sup>&trade;</sup></span>
+    </div>
+    <div id="trustBadge" style="display:none;align-items:center;gap:8px;margin-left:18px;padding-left:18px;border-left:1px solid rgba(255,255,255,0.2);">
+      <img id="trustBadgeLogo" style="height:26px;width:auto;display:none;" alt="" />
+      <span id="trustBadgeName" style="font-size:0.85em;color:rgba(255,255,255,0.75);font-weight:500;"></span>
+    </div>
+    <div id="siteBadge" style="display:none;align-items:center;gap:6px;margin-left:12px;padding-left:12px;border-left:1px solid rgba(255,255,255,0.2);">
+      <span style="font-size:0.85em;">📍</span>
+      <span id="siteBadgeName" style="font-size:0.85em;color:rgba(255,255,255,0.75);font-weight:500;"></span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="about-btn" id="adminBtn" onclick="window.location.href='admin.html'" style="display:none;">Admin</button>
+    <button class="about-btn" id="verifyBtn" onclick="window.location.href='verify.html'" style="display:none;position:relative;">Verify<span class="nav-badge" id="verifyBadge" style="display:none;"></span></button>
+    <button class="about-btn" id="pendingBtn" onclick="window.location.href='pending-prints.html'" style="display:none;position:relative;">My Pending Prints<span class="nav-badge" id="pendingBadge" style="display:none;"></span></button>
+    <button class="about-btn" id="correctionsBtn" onclick="window.location.href='corrections.html'" style="display:none;position:relative;">Corrections<span class="nav-badge" id="correctionsBadge" style="display:none;"></span></button>
+    <button class="about-btn" onclick="window.location.href='product.html'">Products</button>
+    <button class="about-btn" onclick="document.getElementById('aboutModal').classList.add('open')">About</button>
+    <button class="about-btn" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="shared/fp10-api.js"></script>
+<script>
+(async () => {
+  const session = await requireSession();
+  if (!session) return; // requireSession already redirected to login.html
+
+  const profile = await getMyProfile();
+  if (profile?.isAuditor) {
+    window.location.href = 'auditor.html';
+    return;
+  }
+  if (profile?.isAdmin) document.getElementById('adminBtn').style.display = 'inline-block';
+  // Superusers manage the system — they don't generate FP10SS/FP10HNC
+  // documents themselves, so there's nothing for those buttons to do.
+  if (profile?.isSuperuser || profile?.isTrustSuperuser) document.getElementById('launchBand').style.display = 'none';
+  // Pharmacy Technicians (verifiers) can now both generate AND verify — show
+  // the normal launch buttons (below) plus a link to the Verify page.
+  if (profile?.isVerifier || profile?.isPharmacist) document.getElementById('verifyBtn').style.display = 'inline-block';
+  // Anyone who can generate documents (Pharmacy Assistants + Technicians)
+  // needs somewhere to come back and print once something's been verified.
+  if (profile?.role === 'user' || profile?.isVerifier || profile?.isPharmacist) document.getElementById('pendingBtn').style.display = 'inline-block';
+  if (profile?.role === 'user' || profile?.isVerifier || profile?.isPharmacist) document.getElementById('correctionsBtn').style.display = 'inline-block';
+
+  loadNavBadges(profile);
+  loadSiteBadge(profile);
+
+  const trust = await getMyTrust();
+  if (!trust) return; // no trust assigned (e.g. a superuser) — leave the badge hidden
+
+  const badge = document.getElementById('trustBadge');
+  const logoImg = document.getElementById('trustBadgeLogo');
+  const nameSpan = document.getElementById('trustBadgeName');
+
+  nameSpan.textContent = trust.name;
+  if (trust.logoUrl) {
+    logoImg.src = trust.logoUrl;
+    logoImg.style.display = 'block';
+  }
+  badge.style.display = 'flex';
+})();
+
+async function loadSiteBadge(profile) {
+  // Developer/Superuser/Governance operate across sites by design — the
+  // "which site am I logged into" question is really only meaningful for
+  // the roles that actually work at a specific site day to day.
+  if (!['user', 'verifier', 'pharmacist', 'admin'].includes(profile.role)) return;
+  try {
+    const { sites, unrestricted } = await callAdminUsers('list-my-sites', {});
+    if (!sites || sites.length === 0) return; // trust isn't using sites at all
+    const label = unrestricted ? 'All sites' : sites.map(s => s.name).join(', ');
+    document.getElementById('siteBadgeName').textContent = label;
+    document.getElementById('siteBadge').style.display = 'flex';
+  } catch (err) { /* non-fatal */ }
+}
+
+async function loadNavBadges(profile) {
+  try {
+    const needsOwn = profile?.role === 'user' || profile?.isVerifier || profile?.isPharmacist;
+    const wantsVerify = profile?.isVerifier || profile?.isPharmacist;
+    if (!needsOwn && !wantsVerify) return;
+
+    // One own_only call covers Pending Prints + Corrections. Verify needs
+    // the trust-wide view, so it's a separate call when relevant.
+    const [ownData, trustData] = await Promise.all([
+      needsOwn ? callAdminUsers('list-sessions', { own_only: true }) : null,
+      wantsVerify ? callAdminUsers('list-sessions', {}) : null,
+    ]);
+
+    if (ownData) {
+      let printable = 0, correctable = 0;
+      (ownData.sessions || []).forEach(s => (s.register_log || []).forEach(r => {
+        if (r.verified && !r.voided && !r.expired && !r.printed) printable++;
+        if (r.rejected && !r.voided && !r.verified) correctable++;
+      }));
+      setNavBadge('pendingBadge', printable);
+      setNavBadge('correctionsBadge', correctable);
+    }
+
+    if (trustData) {
+      let toCheck = 0;
+      (trustData.sessions || []).forEach(s => {
+        const isLockedToOther = s.assigned_verifier && s.assigned_verifier !== profile.id && !profile.isSuperuser && !profile.isTrustSuperuser;
+        if (isLockedToOther || s.user_id === profile.id) return;
+        (s.register_log || []).forEach(r => {
+          if (!r.verified && !r.rejected && !r.voided) toCheck++;
+        });
+      });
+      setNavBadge('verifyBadge', toCheck);
+    }
+  } catch (err) {
+    // Badges are a convenience, not critical — fail silently rather than
+    // interrupting the page over a count that couldn't be loaded.
+  }
+}
+
+function setNavBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (count > 0) {
+    el.textContent = count > 99 ? '99+' : String(count);
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
+}
+</script>
+
+<div class="hero-band">
+  <div class="tri-right"></div>
+  <div class="tri-right2"></div>
+  <div class="tri-extra1"></div>
+  <div class="tri-extra2"></div>
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="orb orb4"></div>
+
+  <!-- Glowing Orbs -->
+  <div class="bg-orb" style="width:500px;height:500px;background:rgba(232,23,110,0.12);top:5%;left:5%;animation:orbFloat1 25s ease-in-out infinite"></div>
+  <div class="bg-orb" style="width:420px;height:420px;background:rgba(42,82,160,0.15);top:20%;right:5%;animation:orbFloat2 32s ease-in-out infinite"></div>
+  <div class="bg-orb" style="width:380px;height:380px;background:rgba(0,168,142,0.1);bottom:10%;left:35%;animation:orbFloat3 28s ease-in-out infinite"></div>
+
+  <!-- Light Beams -->
+  <div class="light-beam" style="left:12%;height:60%;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.06),transparent);width:3px;animation:beamFall 14s linear infinite;animation-delay:0s"></div>
+  <div class="light-beam" style="left:34%;height:75%;background:linear-gradient(to bottom,transparent,rgba(232,23,110,0.08),transparent);width:2px;animation:beamFall 18s linear infinite;animation-delay:-5s"></div>
+  <div class="light-beam" style="left:62%;height:55%;background:linear-gradient(to bottom,transparent,rgba(255,255,255,0.05),transparent);width:4px;animation:beamFall 22s linear infinite;animation-delay:-9s"></div>
+  <div class="light-beam" style="left:84%;height:70%;background:linear-gradient(to bottom,transparent,rgba(232,23,110,0.07),transparent);width:2px;animation:beamFall 16s linear infinite;animation-delay:-3s"></div>
+
+  <!-- Floating Particles -->
+  <div class="particle" style="width:4px;height:4px;background:rgba(255,255,255,0.6);bottom:5%;left:8%;animation:floatUp1 12s linear infinite,bobble 4s ease-in-out infinite;animation-delay:0s,0s"></div>
+  <div class="particle" style="width:3px;height:3px;background:rgba(232,23,110,0.8);bottom:5%;left:20%;animation:floatUp2 16s linear infinite,bobble 6s ease-in-out infinite;animation-delay:-4s,-1s"></div>
+  <div class="particle" style="width:5px;height:5px;background:rgba(255,255,255,0.4);bottom:5%;left:33%;animation:floatUp3 14s linear infinite,bobble 5s ease-in-out infinite;animation-delay:-8s,-2s"></div>
+  <div class="particle" style="width:3px;height:3px;background:rgba(0,168,142,0.7);bottom:5%;left:45%;animation:floatUp1 18s linear infinite,bobble 7s ease-in-out infinite;animation-delay:-2s,-3s"></div>
+  <div class="particle" style="width:4px;height:4px;background:rgba(255,255,255,0.5);bottom:5%;left:57%;animation:floatUp2 13s linear infinite,bobble 4.5s ease-in-out infinite;animation-delay:-6s,-1.5s"></div>
+  <div class="particle" style="width:6px;height:6px;background:rgba(232,23,110,0.5);bottom:5%;left:68%;animation:floatUp3 20s linear infinite,bobble 6.5s ease-in-out infinite;animation-delay:-10s,-0.5s"></div>
+  <div class="particle" style="width:3px;height:3px;background:rgba(255,255,255,0.7);bottom:5%;left:76%;animation:floatUp1 15s linear infinite,bobble 5.5s ease-in-out infinite;animation-delay:-3s,-2.5s"></div>
+  <div class="particle" style="width:4px;height:4px;background:rgba(0,168,142,0.6);bottom:5%;left:84%;animation:floatUp2 17s linear infinite,bobble 4s ease-in-out infinite;animation-delay:-7s,-1s"></div>
+  <div class="particle" style="width:5px;height:5px;background:rgba(232,23,110,0.6);bottom:5%;left:91%;animation:floatUp3 11s linear infinite,bobble 6s ease-in-out infinite;animation-delay:-1s,-3.5s"></div>
+  <div class="particle" style="width:3px;height:3px;background:rgba(255,255,255,0.45);bottom:5%;left:4%;animation:floatUp1 19s linear infinite,bobble 5s ease-in-out infinite;animation-delay:-5s,-2s"></div>
+  <div class="app-name">FP10 <span>Manager</span></div>
+  <div class="rule"></div>
+  <div class="tagline">Developed by GD&G Special Projects™</div>
+  <div class="btn-tooltip" id="btnTooltip"><span id="btnTooltipText"></span></div>
+</div>
+
+<div class="launch-band" id="launchBand">
+  <div class="launch-btn-wrap">
+    <button class="launch-btn launch-btn--hnc" onmouseenter="showBtnTooltip('Use this for issuing handwritten FP10 forms')" onmouseleave="hideBtnTooltip()" onclick="window.location.href='FP10_HNC_Manager.html';">FP10HNC Manager™</button>
+  </div>
+  <div class="launch-btn-wrap">
+    <button class="launch-btn launch-btn--ss" onmouseenter="showBtnTooltip('Use this for issuing blank FP10 forms for overprinting')" onmouseleave="hideBtnTooltip()" onclick="window.location.href='FP10SS_Manager.html';">FP10SS Manager™</button>
+  </div>
+</div>
+
+<footer>
+  <span></span>
+  <span>v36.1</span>
+</footer>
+
+<div class="modal-overlay" id="aboutModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('aboutModal').classList.remove('open')">&times;</button>
+    <div class="modal-tag">About this tool</div>
+    <h2>FP10 Manager</h2>
+    <p>Developed by <strong class="brand-text">GD&amp;G <span class="brand-sub">Special Projects™</span></strong> for <strong>University Hospitals Sussex NHS Foundation Trust</strong>, FP10 Manager™ covers the two distinct types of FP10 controlled stationery in circulation across the Trust.</p>
+    <ul class="modal-list">
+      <li><span class="modal-list-tag modal-list-tag--hnc">FP10HNC Manager™</span> is for the handwritten pads — FP10HNC forms, typically issued in pads of 50, filled in by hand at the point of prescribing. As pads are booked out to a department, it generates the pharmacy register, cover sheets and session log needed to track that pad through to return — a full audit trail without anyone logging serial ranges by hand.</li>
+      <li><span class="modal-list-tag modal-list-tag--ss">FP10SS Manager™</span> is for the machine-printed single sheets — FP10SS forms, overprinted via Symphony. Quantities in this volume can't practically be counted sheet by sheet, so this tool works out exactly how many sheets are in a stack from just the first three serials and the last one, then produces a Pharmacy Copy / Ward Copy log ready to print.</li>
+    </ul>
+    <div class="modal-notice">
+      This tool is intended for use by <strong>authorised Trust staff only</strong>.
+    </div>
+    <div class="modal-support-tag">Support</div>
+    <div class="contact">
+      For support or more information: <a href="mailto:ismael.yasin@nhs.net">ismael.yasin@nhs.net</a>
+    </div>
+    <div class="modal-ver">Version 36.1</div>
+  </div>
+</div>
+<script>
+// ── Button hover tooltip (shown under tagline) ──
+function showBtnTooltip(text){
+  var el = document.getElementById('btnTooltip');
+  document.getElementById('btnTooltipText').textContent = text;
+  el.classList.add('visible');
+}
+function hideBtnTooltip(){
+  var el = document.getElementById('btnTooltip');
+  el.classList.remove('visible');
+}
+
+
+
+</script>
+</body>
+</html>
