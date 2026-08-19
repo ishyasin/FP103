@@ -240,16 +240,12 @@ async function onPrintRegister(registerId, sessions) {
     buildSSPdf(session, register, logoData).save(`FP10_Stack_Count_${(session.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
 
     if (!register.printed) {
-      try { await callAdminUsers('mark-printed', { id: registerId }); } catch (err) { /* non-fatal — PDF already downloaded */ }
+      await callAdminUsers('mark-printed', { id: registerId });
     }
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '↻ Print again';
-      btn.classList.add('btn-print--printed');
-    }
+    load(); // refresh so the button/status reflects what the server actually has, not just an optimistic class toggle
   } catch (err) {
-    alert('Error generating PDF: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Print'; }
+    alert('Error printing: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = register.printed ? '↻ Print again' : 'Print'; }
   }
 }
 
@@ -282,15 +278,11 @@ async function onPrintSession(sessionId, sessions) {
     });
 
     await Promise.all(registers.filter(r => !r.printed).map(r =>
-      callAdminUsers('mark-printed', { id: r.id }).catch(() => {})
+      callAdminUsers('mark-printed', { id: r.id })
     ));
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '↻ Print again';
-      btn.classList.add('btn-print--printed');
-    }
+    load(); // refresh so the button/status reflects what the server actually has
   } catch (err) {
-    alert('Error generating PDF: ' + err.message);
+    alert('Error printing: ' + err.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Print session (log + each register)'; }
   }
 }
