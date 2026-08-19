@@ -73,6 +73,24 @@
   .success{background:var(--green-pale);color:var(--green-pale-text);padding:10px 12px;border-radius:6px;font-size:0.85em;margin-bottom:14px;display:none;}
   .success.show{display:block;}
   .not-authorised{max-width:480px;margin:80px auto;text-align:center;color:var(--text-muted);}
+
+  /* ── Colour-coded bar panels (Final Check queue) ── */
+  .queue-group{margin-bottom:18px;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+  .queue-bar{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.08);position:relative;overflow:hidden;}
+  .queue-bar:last-child{border-bottom:none;}
+  .queue-bar-fill{position:absolute;inset:0;z-index:0;}
+  .queue-bar-content{position:relative;z-index:1;display:flex;align-items:flex-start;gap:12px;width:100%;}
+  .queue-bar input[type=checkbox]{margin-top:3px;width:16px;height:16px;flex-shrink:0;position:relative;z-index:1;}
+  .queue-bar-text{flex:1;}
+  .queue-bar-title{font-weight:700;font-size:0.95em;color:var(--text);}
+  .queue-bar-line{font-size:0.82em;color:var(--text);opacity:0.85;line-height:1.5;}
+  .queue-bar-chevron{font-size:0.8em;color:var(--text);opacity:0.6;margin-top:2px;}
+  .queue-detail{background:#fff;padding:14px 16px;display:none;border-top:1px solid rgba(0,0,0,0.08);}
+  .queue-detail.open{display:block;}
+  .register-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:6px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border);}
+  .register-bar:last-child{margin-bottom:0;}
+  .register-bar-text{flex:1;font-size:0.85em;}
+  .register-bar-actions{display:flex;gap:6px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -150,18 +168,27 @@ async function startCheck() {
 
 function renderList() {
   const main = document.getElementById('mainContent');
-  const pendingCount = SESSIONS.reduce((n, s) => {
+
+  // Only what's actually been printed is checkable — the Technician is
+  // working against the physical copy, so nothing shows here until that
+  // copy exists.
+  const bookedInSessions = SESSIONS.map(s => ({
+    ...s,
+    register_log: (s.register_log || []).filter(r => r.printed),
+  })).filter(s => (s.register_log || []).length > 0);
+
+  const pendingCount = bookedInSessions.reduce((n, s) => {
     const isOwnSession = s.user_id === ME.id && !ME.isPharmacist;
     return n + (isOwnSession ? 0 : (s.register_log || []).filter(r => !r.verified && !r.rejected && !r.voided).length);
   }, 0);
 
   const visibleSessions = HIDE_VERIFIED
-    ? SESSIONS.map(s => ({ ...s, register_log: (s.register_log || []).filter(r => !r.verified) })).filter(s => (s.register_log || []).length > 0)
-    : SESSIONS;
+    ? bookedInSessions.map(s => ({ ...s, register_log: (s.register_log || []).filter(r => !r.verified) })).filter(s => (s.register_log || []).length > 0)
+    : bookedInSessions;
 
   main.innerHTML = `
     <h1>Final Check</h1>
-    <p class="subtitle">${pendingCount} register${pendingCount === 1 ? '' : 's'} awaiting verification. Tick each register individually — only the ones you reject go back for correction.</p>
+    <p class="subtitle">${pendingCount} register${pendingCount === 1 ? '' : 's'} printed and waiting to be checked against the physical copy. Tick each one individually — only the ones you reject go back for correction.</p>
     <div id="alertBox" class="error"></div>
     <div id="successBox" class="success"></div>
     <div class="toolbar">
@@ -171,68 +198,94 @@ function renderList() {
         <button class="btn-primary" id="downloadBtn">Download Report</button>
       </div>
     </div>
-    ${visibleSessions.length === 0 ? '<div class="card"><div class="empty-state">Nothing here.</div></div>' : visibleSessions.map(sessionCardHtml).join('')}
+    ${visibleSessions.length === 0 ? '<div class="card"><div class="empty-state">Nothing printed and waiting yet.</div></div>' : visibleSessions.map(sessionQueueGroupHtml).join('')}
   `;
 
   document.getElementById('refreshBtn').addEventListener('click', startCheck);
   document.getElementById('downloadBtn').addEventListener('click', downloadReport);
   document.getElementById('hideVerifiedBtn').addEventListener('click', () => { HIDE_VERIFIED = !HIDE_VERIFIED; renderList(); });
+  document.querySelectorAll('[data-toggle-group]').forEach(bar => {
+    bar.addEventListener('click', (e) => {
+      if (e.target.type === 'checkbox') return; // don't toggle when just ticking the header checkbox
+      const detail = document.getElementById(`detail-${bar.dataset.toggleGroup}`);
+      const chevron = bar.querySelector('.queue-bar-chevron');
+      const isOpen = detail.classList.toggle('open');
+      if (chevron) chevron.textContent = isOpen ? '▲' : '▼';
+    });
+  });
   document.querySelectorAll('[data-verify-id]').forEach(btn => {
-    btn.addEventListener('click', () => onVerifyClick(btn.dataset.verifyId));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); onVerifyClick(btn.dataset.verifyId); });
   });
   document.querySelectorAll('[data-reject-id]').forEach(btn => {
-    btn.addEventListener('click', () => onReject(btn.dataset.rejectId));
+    btn.addEventListener('click', (e) => { e.stopPropagation(); onReject(btn.dataset.rejectId); });
   });
 }
 
-function sessionCardHtml(s) {
+// Colour banding for the bar fill — green for the first third of the KPI
+// target, amber the second, red the last third and anything overdue.
+function kpiColor(fraction) {
+  return fraction < 1 / 3 ? '#a8e6b0' : fraction < 2 / 3 ? '#ffe08a' : '#f3a9a9';
+}
+function kpiSolidColor(fraction) {
+  return fraction < 1 / 3 ? '#2ecc71' : fraction < 2 / 3 ? '#f0b429' : '#e74c3c';
+}
+
+function sessionQueueGroupHtml(s) {
   const registers = s.register_log || [];
   const appLabel = s.app === 'ss' ? 'FP10SS' : 'FP10HNC';
   const isLockedToOther = s.assigned_verifier && s.assigned_verifier !== ME.id && !ME.isSuperuser;
+  const isOwn = s.user_id === ME.id && !ME.isPharmacist;
+  const unresolved = registers.filter(r => !r.verified && !r.rejected && !r.voided);
   const isFullyChecked = registers.length > 0 && registers.every(r => r.voided || r.verified);
-  const lockNote = s.assigned_verifier
-    ? `<div style="font-size:0.78em;color:${isLockedToOther ? '#a01c2e' : '#1a7a3c'};margin-top:2px;">
-        ${isLockedToOther ? `🔒 Being checked by ${escapeHtml(s.assigned_verifier_name || 'another Technician')}` : (isFullyChecked ? '✓ You have checked this session' : '🔒 You are checking this session')}
-       </div>`
-    : '';
 
-  // All registers in one session/log must share the same FP10 cost code —
-  // flag it clearly if they don't, rather than letting a mismatch slip
-  // through unnoticed.
+  // Group colour = the worst (most urgent) status among its still-open
+  // registers, based on time elapsed since PRINTING — that's when the
+  // physical copy actually became available to check, not when it was
+  // first generated.
+  const target = (s.turnaround_target_minutes || 120) * 60 * 1000;
+  const worstFraction = unresolved.length
+    ? Math.max(...unresolved.map(r => Math.min(1, (Date.now() - new Date(r.printed_at).getTime()) / target)))
+    : 0;
+  const groupColor = unresolved.length ? kpiColor(worstFraction) : '#e8ecf3';
+
+  const firstSerials = registers.map(r => r.payload?.first).filter(Boolean);
+  const lastSerials = registers.map(r => r.payload?.last).filter(Boolean);
+  const overallFirst = firstSerials.length ? Math.min(...firstSerials.map(Number)) : '—';
+  const overallLast = lastSerials.length ? Math.max(...lastSerials.map(Number)) : '—';
+  const totalSheets = registers.reduce((n, r) => n + (r.payload?.total || 0), 0);
+  const earliestPrinted = registers.map(r => r.printed_at).filter(Boolean).sort()[0];
+
+  const lockLabel = isLockedToOther
+    ? ` — 🔒 being checked by ${escapeHtml(s.assigned_verifier_name || 'another Technician')}`
+    : s.assigned_verifier ? (isFullyChecked ? ' — ✓ you have checked this session' : ' — 🔒 you are checking this session') : '';
+
   const codes = registers.filter(r => !r.voided).map(r => (r.payload?.deptCode || '').trim());
   const uniqueCodes = [...new Set(codes.filter(c => c))];
   const hasMismatch = uniqueCodes.length > 1;
-  const majorityCode = hasMismatch
-    ? codes.reduce((acc, c) => { acc[c] = (acc[c] || 0) + 1; return acc; }, {})
-    : null;
-  const expectedCode = hasMismatch
-    ? Object.entries(majorityCode).sort((a, b) => b[1] - a[1])[0][0]
-    : uniqueCodes[0];
+  const majorityCode = hasMismatch ? codes.reduce((acc, c) => { acc[c] = (acc[c] || 0) + 1; return acc; }, {}) : null;
+  const expectedCode = hasMismatch ? Object.entries(majorityCode).sort((a, b) => b[1] - a[1])[0][0] : uniqueCodes[0];
 
-  const mismatchBanner = hasMismatch
-    ? `<div style="background:#fdecef;border:1px solid var(--red);border-radius:6px;padding:8px 12px;margin:8px 0;font-size:0.85em;color:#a01c2e;">
-        ⚠ <strong>Cost codes don't match within this session</strong> — every register in the same log should have the same FP10 code (e.g. all RYR73). Check the flagged row(s) below before verifying.
-       </div>`
-    : '';
-
-  const rows = registers.map(r => registerRowHtml(s, r, isLockedToOther, expectedCode)).join('');
+  const groupId = s.id;
 
   return `
-    <div class="card" style="margin-bottom:16px;">
-      <div style="margin-bottom:10px;">
-        <strong>${appLabel}</strong> — ${escapeHtml(s.cost_centre || '—')} · ${escapeHtml(s.generated_by || '—')}${s.site_name ? ` · <span style="color:var(--navy);font-weight:600;">📍 ${escapeHtml(s.site_name)}</span>` : ''}
-        <div style="color:var(--text-muted);font-size:0.8em;">Submitted ${escapeHtml(new Date(s.submitted_at).toLocaleString('en-GB'))}</div>
-        ${lockNote}
+    <div class="queue-group">
+      <div class="queue-bar" style="background:${groupColor};" data-toggle-group="${groupId}">
+        <input type="checkbox" disabled ${isFullyChecked ? 'checked' : ''} />
+        <div class="queue-bar-text">
+          <div class="queue-bar-title">${appLabel} — ${escapeHtml(s.cost_centre || '—')}${s.site_name ? ` · 📍 ${escapeHtml(s.site_name)}` : ''}</div>
+          <div class="queue-bar-line">${registers.length} register${registers.length === 1 ? '' : 's'} · Serials ${escapeHtml(String(overallFirst))} → ${escapeHtml(String(overallLast))} · ${totalSheets} sheet${totalSheets === 1 ? '' : 's'} total</div>
+          <div class="queue-bar-line">Generated by ${escapeHtml(s.generated_by || '—')}. ${earliestPrinted ? `Printed at ${new Date(earliestPrinted).toLocaleString('en-GB')}.` : ''}${lockLabel}</div>
+        </div>
+        <div class="queue-bar-chevron">▼</div>
       </div>
-      ${mismatchBanner}
-      <table>
-        <thead><tr><th>Time</th><th>Cost Centre</th><th>First</th><th>Last</th><th>Total</th><th>Waiting</th><th>Status</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="queue-detail" id="detail-${groupId}">
+        ${hasMismatch ? `<div style="background:#fdecef;border:1px solid var(--red);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:0.85em;color:#a01c2e;">⚠ <strong>Cost codes don't match within this session</strong> — every register in the same log should have the same FP10 code. Check the flagged register(s) below before verifying.</div>` : ''}
+        ${registers.map(r => registerBarHtml(s, r, isLockedToOther, isOwn, expectedCode)).join('')}
+      </div>
     </div>`;
 }
 
-function diffRowHtml(s, r) {
+function diffBlockHtml(s, r) {
   const prev = r.previous_payload;
   const curr = r.payload;
   if (!prev) return '';
@@ -253,98 +306,89 @@ function diffRowHtml(s, r) {
     </tr>`).join('');
 
   return `
-    <tr>
-      <td colspan="8" style="padding:0;border-bottom:1px solid #eef0f4;">
-        <div style="background:#eef4fb;border-left:4px solid var(--navy);padding:10px 14px;margin:2px 0;">
-          <div style="font-weight:700;color:var(--navy);font-size:0.85em;margin-bottom:6px;">📝 Track Changes — corrected by ${escapeHtml(s.generated_by || 'the person who generated this')}</div>
-          <table style="width:auto;font-size:0.85em;">
-            <thead><tr><th style="padding:2px 12px 2px 0;">Field</th><th style="padding:2px 12px;">Before</th><th style="padding:2px 0;">After</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </td>
-    </tr>`;
+    <div style="background:#eef4fb;border-left:4px solid var(--navy);padding:10px 14px;margin-top:8px;border-radius:0 6px 6px 0;">
+      <div style="font-weight:700;color:var(--navy);font-size:0.85em;margin-bottom:6px;">📝 Track Changes — corrected by ${escapeHtml(s.generated_by || 'the person who generated this')}</div>
+      <table style="width:auto;font-size:0.85em;">
+        <thead><tr><th style="padding:2px 12px 2px 0;">Field</th><th style="padding:2px 12px;">Before</th><th style="padding:2px 0;">After</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
-function registerRowHtml(s, r, isLockedToOther, expectedCode) {
+function registerBarHtml(s, r, isLockedToOther, isOwn, expectedCode) {
   const p = r.payload || {};
-  const isOwn = s.user_id === ME.id && !ME.isPharmacist;
-  let statusBadge, actionCell;
-
   const codeMismatch = expectedCode && !r.voided && (p.deptCode || '').trim() !== expectedCode;
-  const costCentreCell = codeMismatch
+  const deptDisplay = codeMismatch
     ? `<span style="color:#a01c2e;font-weight:700;">⚠ ${escapeHtml(p.deptCode || '—')}</span>`
     : escapeHtml(p.deptCode || '—');
 
   const wasCorrected = !!r.previous_payload && !r.verified && !r.rejected && !r.voided;
-  const pendingBadge = wasCorrected
-    ? '<span class="badge" style="background:#ffe4b3;color:#8a5000;">🔔 Corrected — Recheck</span>'
-    : '<span class="badge badge-pending">Pending</span>';
+  let statusBadge, actions;
 
   if (r.voided) {
     statusBadge = '<span class="badge badge-voided">Voided</span>';
-    actionCell = '';
+    actions = '';
   } else if (r.verified) {
     statusBadge = '<span class="badge badge-verified">Verified</span>';
-    actionCell = `<span style="color:#1a7a3c;font-size:0.8em;">${escapeHtml(r.verified_by_name || '—')}</span>`;
+    actions = `<span style="color:#1a7a3c;font-size:0.8em;">${escapeHtml(r.verified_by_name || '—')}</span>`;
   } else if (r.rejected) {
     statusBadge = '<span class="badge" style="background:#f8d7da;color:#a01c2e;">Sent back</span>';
-    actionCell = `<span style="color:#a01c2e;font-size:0.8em;" title="${escapeHtml(r.rejection_reason || '')}">reason: ${escapeHtml(r.rejection_reason || '—')}</span>`;
+    actions = `<span style="color:#a01c2e;font-size:0.8em;" title="${escapeHtml(r.rejection_reason || '')}">reason: ${escapeHtml(r.rejection_reason || '—')}</span>`;
   } else if (isOwn) {
-    statusBadge = pendingBadge;
-    actionCell = '<span class="own-note">Not yours to check</span>';
+    actions = '<span class="own-note">Not yours to check</span>';
   } else if (isLockedToOther) {
-    statusBadge = pendingBadge;
-    actionCell = '<span class="own-note">🔒 Locked to another Technician</span>';
+    actions = '<span class="own-note">🔒 Locked to another Technician</span>';
   } else if (CONFIRM_PENDING_ID === r.id) {
-    statusBadge = pendingBadge;
-    actionCell = `
+    actions = `
       <button class="btn-verify" data-verify-id="${r.id}" style="background:#1a7a3c;color:#fff;">Confirm ✓</button>
-      <button class="btn-secondary" onclick="cancelConfirm()" style="padding:4px 10px;font-size:0.8em;">Cancel</button>`;
+      <button class="btn-secondary" onclick="event.stopPropagation();cancelConfirm()" style="padding:4px 10px;font-size:0.8em;">Cancel</button>`;
   } else {
-    statusBadge = pendingBadge;
-    actionCell = `
+    actions = `
       <button class="btn-verify" data-verify-id="${r.id}">Verify</button>
       <button class="btn-secondary" data-reject-id="${r.id}" style="color:#a01c2e;border-color:#eeb4bb;padding:4px 10px;font-size:0.8em;">Reject</button>`;
   }
 
-  const diffRow = diffRowHtml(s, r);
-  const isPending = !r.voided && !r.verified && !r.rejected;
-  const turnaroundCell = isPending ? turnaroundBarHtml(r.created_at, s.turnaround_target_minutes) : '';
+  if (!r.voided && wasCorrected && !r.verified && !r.rejected) {
+    statusBadge = '<span class="badge" style="background:#ffe4b3;color:#8a5000;">🔔 Corrected — Recheck</span>';
+  } else if (!statusBadge) {
+    statusBadge = '<span class="badge badge-pending">Pending</span>';
+  }
+
+  const isOpenForAction = !r.voided && !r.verified && !r.rejected;
+  const barColor = isOpenForAction ? kpiColor(kpiFraction(r.printed_at, s.turnaround_target_minutes)) : '#fff';
+  const waitLabel = isOpenForAction ? turnaroundLabelHtml(r.printed_at, s.turnaround_target_minutes) : '';
+  const diffBlock = diffBlockHtml(s, r);
 
   return `
-    <tr class="${r.voided ? 'voided' : ''}">
-      <td>${escapeHtml(new Date(r.created_at).toLocaleTimeString('en-GB'))}</td>
-      <td>${costCentreCell}</td>
-      <td>${escapeHtml(String(p.first ?? '—'))}</td>
-      <td>${escapeHtml(String(p.last ?? '—'))}</td>
-      <td>${escapeHtml(String(p.total ?? '—'))}</td>
-      <td>${turnaroundCell}</td>
-      <td>${statusBadge}</td>
-      <td>${actionCell}</td>
-    </tr>${diffRow}`;
+    <div class="register-bar" style="background:${barColor};">
+      <div class="register-bar-text">
+        <div><strong>${escapeHtml(String(p.first ?? '—'))} → ${escapeHtml(String(p.last ?? '—'))}</strong> · Dept: ${deptDisplay} · ${escapeHtml(String(p.total ?? '—'))} sheets · Printed ${r.printed_at ? new Date(r.printed_at).toLocaleString('en-GB') : '—'}</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${statusBadge}${waitLabel}</div>
+        ${diffBlock}
+      </div>
+      <div class="register-bar-actions">${actions}</div>
+    </div>`;
 }
 
-// Colour-coded progress bar showing how much of the trust's checking
-// turnaround target has elapsed since this register was submitted:
-// green for the first third, amber the second, red the last third
-// (and anything past the target).
-function turnaroundBarHtml(createdAt, targetMinutes) {
+// Colour banding based on time elapsed since the physical copy was
+// PRINTED (that's when the checking clock actually starts now) against
+// the trust's turnaround target: green first third, amber second, red
+// last third and anything overdue.
+function kpiFraction(printedAt, targetMinutes) {
+  if (!printedAt) return 0;
   const target = (targetMinutes || 120) * 60 * 1000;
-  const elapsed = Date.now() - new Date(createdAt).getTime();
-  const fraction = Math.max(0, Math.min(1, elapsed / target));
-  const color = fraction < 1 / 3 ? '#2ecc71' : fraction < 2 / 3 ? '#f0b429' : '#e74c3c';
+  const elapsed = Date.now() - new Date(printedAt).getTime();
+  return Math.max(0, Math.min(1, elapsed / target));
+}
+
+function turnaroundLabelHtml(printedAt, targetMinutes) {
+  if (!printedAt) return '';
+  const target = (targetMinutes || 120) * 60 * 1000;
+  const elapsed = Date.now() - new Date(printedAt).getTime();
   const elapsedMins = Math.floor(elapsed / 60000);
   const elapsedLabel = elapsedMins < 60 ? `${elapsedMins}m` : `${Math.floor(elapsedMins / 60)}h ${elapsedMins % 60}m`;
   const overdue = elapsed > target;
-
-  return `
-    <div style="width:70px;">
-      <div style="background:#e5e8ee;border-radius:4px;height:6px;overflow:hidden;">
-        <div style="width:${(fraction * 100).toFixed(0)}%;height:100%;background:${color};transition:width 1s linear;"></div>
-      </div>
-      <div style="font-size:0.72em;color:${overdue ? '#a01c2e' : 'var(--text-muted)'};margin-top:2px;font-weight:${overdue ? '700' : '400'};">${elapsedLabel}${overdue ? ' overdue' : ''}</div>
-    </div>`;
+  return `<span style="font-size:0.76em;color:${overdue ? '#a01c2e' : 'var(--text-muted)'};font-weight:${overdue ? '700' : '400'};">Waiting ${elapsedLabel}${overdue ? ' — overdue' : ''}</span>`;
 }
 // Verify requires a second click to confirm, to prevent accidentally
 // verifying the wrong register.

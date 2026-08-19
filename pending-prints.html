@@ -137,17 +137,19 @@ function render(sessions) {
   main.querySelectorAll('[data-print-register]').forEach(btn => {
     btn.addEventListener('click', () => onPrintRegister(btn.dataset.printRegister, sessions));
   });
-  main.querySelectorAll('[data-print-session-log]').forEach(btn => {
-    btn.addEventListener('click', () => onPrintSessionLog(btn.dataset.printSessionLog, sessions));
+  main.querySelectorAll('[data-print-session]').forEach(btn => {
+    btn.addEventListener('click', () => onPrintSession(btn.dataset.printSession, sessions));
   });
 }
 
 function registerStatus(r) {
   if (r.voided) return { badge: '<span class="badge badge-voided">Voided</span>', canPrint: false, note: '' };
   if (r.expired) return { badge: '<span class="badge badge-expired">Expired</span>', canPrint: false, note: 'Print window closed — regenerate if still needed' };
-  if (r.verified) return { badge: '<span class="badge badge-verified">Verified</span>', canPrint: true, note: '' };
   if (r.rejected) return { badge: '<span class="badge badge-rejected">Sent back for correction</span>', canPrint: false, note: `Reason: ${escapeHtml(r.rejection_reason || '—')}` };
-  return { badge: '<span class="badge badge-pending">Awaiting verification</span>', canPrint: false, note: '' };
+  // Printing no longer waits for verification — checking now happens
+  // against the physical printed copy, not electronically beforehand.
+  if (r.verified) return { badge: '<span class="badge badge-verified">Verified</span>', canPrint: true, note: '' };
+  return { badge: r.printed ? '<span class="badge badge-pending">Printed — awaiting Final Check</span>' : '<span class="badge badge-pending">Not yet printed</span>', canPrint: true, note: '' };
 }
 
 function ssCardHtml(s) {
@@ -168,7 +170,7 @@ function ssCardHtml(s) {
         <div style="text-align:right;">
           ${st.badge}
           <div style="margin-top:8px;">
-            ${st.canPrint ? `<button class="btn-print ${r.printed ? 'btn-print--printed' : ''}" data-print-register="${r.id}">${r.printed ? '✓ Printed' : 'Print'}</button>` : correctLink}
+            ${st.canPrint ? `<button class="btn-print ${r.printed ? 'btn-print--printed' : ''}" data-print-register="${r.id}">${r.printed ? '↻ Print again' : 'Print'}</button>` : correctLink}
           </div>
         </div>
       </div>
@@ -178,24 +180,23 @@ function ssCardHtml(s) {
 function hncSessionCardHtml(s) {
   const registers = s.register_log || [];
   const date = new Date(s.submitted_at).toLocaleString('en-GB');
-  const allVerified = registers.length > 0 && registers.every(r => r.verified && !r.voided && !r.expired);
   const anyRejected = registers.some(r => r.rejected && !r.voided);
+  const anyExpired = registers.some(r => r.expired);
+  const allPrintable = registers.length > 0 && registers.every(r => !r.voided && !r.rejected && !r.expired);
+  const allPrinted = registers.length > 0 && registers.every(r => r.printed);
 
   const rows = registers.map(r => {
     const p = r.payload || {};
     const st = registerStatus(r);
-    const canPrintThis = st.canPrint && allVerified; // nothing prints until every register in the session is checked
     const correctLink = r.rejected ? `<a href="FP10_HNC_Manager.html" style="font-size:0.82em;">Correct →</a>` : '';
-    const waitingNote = st.canPrint && !allVerified
-      ? `<div style="font-size:0.78em;color:var(--text-hint);">Waiting on the rest of the session</div>` : '';
     return `
       <tr>
         <td>${escapeHtml(new Date(r.created_at).toLocaleTimeString('en-GB'))}</td>
         <td>${escapeHtml(String(p.first ?? '—'))}</td>
         <td>${escapeHtml(String(p.last ?? '—'))}</td>
         <td>${escapeHtml(String(p.total ?? '—'))}</td>
-        <td>${st.badge}${st.note ? `<div style="font-size:0.78em;color:#a01c2e;">${st.note}</div>` : ''}${waitingNote}</td>
-        <td>${canPrintThis ? `<button class="btn-print ${r.printed ? 'btn-print--printed' : ''}" data-print-register="${r.id}">${r.printed ? '✓ Printed' : 'Print register'}</button>` : correctLink}</td>
+        <td>${st.badge}${st.note ? `<div style="font-size:0.78em;color:#a01c2e;">${st.note}</div>` : ''}</td>
+        <td>${!st.canPrint ? correctLink : ''}</td>
       </tr>`;
   }).join('');
 
@@ -205,9 +206,9 @@ function hncSessionCardHtml(s) {
         <div>
           <strong>${escapeHtml(s.cost_centre || '—')}</strong> — ${escapeHtml(date)} (${registers.length} register${registers.length === 1 ? '' : 's'})
         </div>
-        <button class="btn-print ${allVerified && registers.every(r => r.printed) ? 'btn-print--printed' : ''}" data-print-session-log="${s.id}" ${allVerified ? '' : 'disabled'}
-          title="${anyRejected ? 'One or more registers were sent back — correct them first' : allVerified ? '' : 'Every register in this session must be verified first'}">
-          ${allVerified && registers.every(r => r.printed) ? '✓ Printed' : 'Print session log'}
+        <button class="btn-print ${allPrinted ? 'btn-print--printed' : ''}" data-print-session="${s.id}" ${allPrintable ? '' : 'disabled'}
+          title="${anyRejected ? 'One or more registers were sent back — correct them first' : anyExpired ? 'One or more registers have expired — regenerate if still needed' : ''}">
+          ${allPrinted ? '↻ Print again' : 'Print session (log + each register)'}
         </button>
       </div>
       <table>
@@ -217,6 +218,9 @@ function hncSessionCardHtml(s) {
     </div>`;
 }
 
+// FP10SS only now — each HNC session prints as one combined action via
+// onPrintSession below, since a session's log and registers always go
+// out together.
 async function onPrintRegister(registerId, sessions) {
   let session, register;
   for (const s of sessions) {
@@ -227,70 +231,70 @@ async function onPrintRegister(registerId, sessions) {
     alert('This document is no longer available to print.');
     return;
   }
-  // Nothing in a session can print until every register in it has been
-  // checked — even if this specific one was verified first.
-  const siblingRegisters = session.register_log || [];
-  const wholeSessionVerified = siblingRegisters.length > 0 && siblingRegisters.every(r => r.verified && !r.voided && !r.expired);
-  if (!wholeSessionVerified) {
-    alert('Every register in this session must be verified before any of them can be printed.');
-    return;
-  }
 
   const btn = document.querySelector(`[data-print-register="${registerId}"]`);
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
 
   try {
     const logoData = TRUST?.logoUrl ? await loadImageAsDataURL(TRUST.logoUrl) : null;
-    if (session.app === 'ss') {
-      buildSSPdf(session, register, logoData).save(`FP10_Stack_Count_${(session.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
-    } else {
-      buildHNCRegisterOnlyPdf(session, register, logoData).save(`FP10_Register_${(register.payload?.deptCode || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
-    }
+    buildSSPdf(session, register, logoData).save(`FP10_Stack_Count_${(session.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
 
     if (!register.printed) {
       try { await callAdminUsers('mark-printed', { id: registerId }); } catch (err) { /* non-fatal — PDF already downloaded */ }
     }
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '✓ Printed';
+      btn.textContent = '↻ Print again';
       btn.classList.add('btn-print--printed');
     }
   } catch (err) {
     alert('Error generating PDF: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = session?.app === 'ss' ? 'Print' : 'Print register'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Print'; }
   }
 }
 
-async function onPrintSessionLog(sessionId, sessions) {
+// One click prints the WHOLE HNC session — the session log plus every
+// individual register, as separate files — and books the whole session
+// in for Final Check at the same time. No verification gate: checking
+// now happens against these physical printed copies, not before they
+// exist.
+async function onPrintSession(sessionId, sessions) {
   const s = sessions.find(x => x.id === sessionId);
   if (!s) return;
-  const registers = (s.register_log || []);
-  const usable = registers.filter(r => r.verified && !r.voided && !r.expired && r.full_payload);
-  if (usable.length !== registers.length || !usable.length) {
-    alert('Every register in this session must be verified before the session log can be printed.');
+  const registers = (s.register_log || []).filter(r => !r.voided && !r.rejected && !r.expired && r.full_payload);
+  if (!registers.length) {
+    alert('Nothing in this session is currently printable.');
     return;
   }
 
-  const btn = document.querySelector(`[data-print-session-log="${sessionId}"]`);
+  const btn = document.querySelector(`[data-print-session="${sessionId}"]`);
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
 
   try {
     const logoData = TRUST?.logoUrl ? await loadImageAsDataURL(TRUST.logoUrl) : null;
-    buildHNCSessionPdf(s, usable, logoData).save(`FP10_Session_${(s.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
 
-    await Promise.all(usable.filter(r => !r.printed).map(r =>
+    // Session log — one file, grouping every register together
+    buildHNCSessionPdf(s, registers, logoData).save(`FP10_Session_Log_${(s.cost_centre || '').replace(/[^a-z0-9]/gi,'')}_${Date.now()}.pdf`);
+
+    // Each register — its own separate file
+    registers.forEach(r => {
+      buildHNCRegisterOnlyPdf(s, r, logoData).save(`FP10_Register_${(r.payload?.deptCode || '').replace(/[^a-z0-9]/gi,'')}_${r.id.slice(0, 8)}_${Date.now()}.pdf`);
+    });
+
+    await Promise.all(registers.filter(r => !r.printed).map(r =>
       callAdminUsers('mark-printed', { id: r.id }).catch(() => {})
     ));
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '✓ Printed';
+      btn.textContent = '↻ Print again';
       btn.classList.add('btn-print--printed');
     }
   } catch (err) {
     alert('Error generating PDF: ' + err.message);
-    if (btn) { btn.disabled = false; btn.textContent = 'Print session log'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Print session (log + each register)'; }
   }
 }
+
 
 async function loadImageAsDataURL(url) {
   try {
@@ -314,7 +318,6 @@ function buildSSPdf(session, register, logoData) {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const p = register.full_payload;
-  const checkedByValue = `${register.verified_by_name || '—'}  (${new Date(register.verified_at).toLocaleString('en-GB')}) — verified electronically`;
 
   [0, 1].forEach((half) => {
     const xOffset = half * (pageWidth / 2);
@@ -350,7 +353,6 @@ function buildSSPdf(session, register, logoData) {
       ['Last Serial:', p.last],
       ['Total FP10SS forms:', String(p.total)],
       ['Processed by:', p.processedBy || 'Not specified'],
-      ['Checked by:', checkedByValue],
     ];
 
     pdf.setFontSize(9.5);
@@ -364,14 +366,18 @@ function buildSSPdf(session, register, logoData) {
       y += 8.5;
     });
 
+    // Final Check is done against this physical printed copy by a
+    // Pharmacy Technician or Pharmacist — a genuine signature, not
+    // recorded electronically before now.
     const placeholderStyle = { textColor: [170, 170, 170], fontStyle: 'italic', fontSize: 8 };
     const sigTableWidth = contentRight - contentLeft;
-    const dateColWidth = 32;
-    const nameColWidth = (sigTableWidth - dateColWidth) / 2;
+    const dateColWidth = 26;
+    const nameColWidth = (sigTableWidth - dateColWidth) / 3;
     pdf.autoTable({
       startY: y + 5,
-      head: [['Supplied by', 'Received by', 'Date of receipt']],
+      head: [['Supplied by', 'Received by', 'Final Check (Tech/Pharmacist)', 'Date']],
       body: [[
+        { content: 'Name & Sign', styles: placeholderStyle },
         { content: 'Name & Sign', styles: placeholderStyle },
         { content: 'Name & Sign', styles: placeholderStyle },
         { content: '', styles: placeholderStyle }
@@ -380,8 +386,8 @@ function buildSSPdf(session, register, logoData) {
       tableWidth: sigTableWidth,
       theme: 'grid',
       styles: { fontSize: 8, cellPadding: 5, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3, minCellHeight: 14 },
-      headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', fontSize: 8, halign: 'center', lineColor: [0,0,0], lineWidth: 0.3 },
-      columnStyles: { 0: { cellWidth: nameColWidth }, 1: { cellWidth: nameColWidth }, 2: { cellWidth: dateColWidth } }
+      headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', fontSize: 7.5, halign: 'center', lineColor: [0,0,0], lineWidth: 0.3 },
+      columnStyles: { 0: { cellWidth: nameColWidth }, 1: { cellWidth: nameColWidth }, 2: { cellWidth: nameColWidth }, 3: { cellWidth: dateColWidth } }
     });
 
     pdf.setFontSize(10);
@@ -419,9 +425,6 @@ function buildHNCRegisterOnlyPdf(session, register, logoData) {
   const serials = p.serials || [];
   const serialRange = `${p.first} - ${p.last}`;
   const siteName = session.site_name || null;
-  const checkedByText = register.verified
-    ? `${register.verified_by_name || '—'} (${new Date(register.verified_at).toLocaleString('en-GB')}) — verified electronically, no signature required`
-    : 'pending verification';
 
   if (logoData) pdf.addImage(logoData, 'PNG', 15, 15, 72, 20);
 
@@ -435,10 +438,13 @@ function buildHNCRegisterOnlyPdf(session, register, logoData) {
   pdf.setFont('helvetica', 'normal');
   pdf.text('Date of issue: ___________________________', pageWidth / 2, 65, { align: 'center' });
 
+  // Final Check is done against this physical printed copy by a Pharmacy
+  // Technician or Pharmacist — a genuine signature, not recorded
+  // electronically before now.
   pdf.autoTable({
     startY: 80,
     head: [['Staff member', 'Print name', 'Signature']],
-    body: [['Supplied by (Pharmacy)', '', ''], ['Received by (Registered professional)', '', '']],
+    body: [['Supplied by (Pharmacy)', '', ''], ['Received by (Registered professional)', '', ''], ['Final Check (Pharmacy Technician/Pharmacist)', '', '']],
     margin: { left: 50, right: 50 },
     theme: 'grid',
     styles: { fontSize: 11, cellPadding: 8, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3 },
@@ -457,8 +463,6 @@ function buildHNCRegisterOnlyPdf(session, register, logoData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(90, 98, 120);
   pdf.text(`Generated by: ${p.processedBy || '—'}`, pageWidth / 2, finalY, { align: 'center' });
-  finalY += 7;
-  pdf.text(`Checked by: ${checkedByText}`, pageWidth / 2, finalY, { align: 'center', maxWidth: pageWidth - 40 });
 
   // Site footer on the cover sheet itself
   pdf.setFontSize(8);
@@ -546,14 +550,6 @@ function drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHe
   pdf.setFont('helvetica', 'bold');
   pdf.text(session.cost_centre || '—', pageWidth - 10, 20, { align: 'right' });
 
-  // Every register in this session is verified before this page can print —
-  // usually by the same Technician, but registers are checked individually
-  // now, so this covers both a single checker and, rarely, more than one.
-  const uniqueVerifiers = [...new Set(registers.map(r => r.verified_by_name || '—'))];
-  const checkedBySummary = uniqueVerifiers.length <= 1
-    ? `${uniqueVerifiers[0] || '—'} (${new Date(registers[registers.length - 1].verified_at).toLocaleString('en-GB')}) — verified electronically`
-    : `${uniqueVerifiers.join(', ')} — verified electronically`;
-
   pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.setFont('helvetica', 'normal');
@@ -561,7 +557,6 @@ function drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHe
   pdf.text(`Session Date: ${new Date(session.submitted_at).toLocaleDateString('en-GB')}`, 10, 50);
   pdf.text(`Generated By: ${session.generated_by || '—'}`, 10, 57);
   pdf.text(`Total Registers: ${registers.length}`, 10, 64);
-  pdf.text(`Checked By: ${checkedBySummary}`, 10, 71, { maxWidth: pageWidth - 20 });
 
   const placeholderStyle = { textColor: [170, 170, 170], fontStyle: 'italic' };
   const tableData = [];
@@ -583,6 +578,7 @@ function drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHe
       { content: p.total, rowSpan: 3 },
       { content: 'Name & Reg', styles: placeholderStyle },
       { content: 'Name & Reg', styles: placeholderStyle },
+      { content: 'Name & Reg', styles: placeholderStyle },
       { content: '', rowSpan: 3 },
       { content: 'Name & Reg', styles: placeholderStyle },
       { content: 'Name & Reg', styles: placeholderStyle }
@@ -591,9 +587,11 @@ function drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHe
       { content: 'Signature', styles: placeholderStyle },
       { content: 'Signature', styles: placeholderStyle },
       { content: 'Signature', styles: placeholderStyle },
+      { content: 'Signature', styles: placeholderStyle },
       { content: 'Signature', styles: placeholderStyle }
     ]);
     tableData.push([
+      { content: 'Date', styles: placeholderStyle },
       { content: 'Date', styles: placeholderStyle },
       { content: 'Date', styles: placeholderStyle },
       { content: 'Date', styles: placeholderStyle },
@@ -604,19 +602,18 @@ function drawSessionLogPage(pdf, session, registers, logoData, pageWidth, pageHe
   const footerText = (session.site_name ? `Site: ${session.site_name}   |   ` : '')
     + `Session Date: ${new Date(session.submitted_at).toLocaleDateString('en-GB')}   |   `
     + `Generated By: ${session.generated_by || '—'}   |   `
-    + `Total Registers: ${registers.length}   |   `
-    + `Checked By: ${checkedBySummary}`
+    + `Total Registers: ${registers.length}`
     + (reassignedNames.size ? `   |   * Corrected by: ${[...reassignedNames].join(', ')}` : '');
 
   pdf.autoTable({
     startY: 78,
-    head: [['Register', 'Date\nCreated', 'Dept. Code', 'First Serial', 'Last Serial', 'Total', 'Supplied by', 'Received by', 'Quantity\nReturned', 'Returned by', 'Received into\npharm by']],
+    head: [['Register', 'Date\nCreated', 'Dept. Code', 'First Serial', 'Last Serial', 'Total', 'Supplied by', 'Received by', 'Final Check\n(Tech/Pharmacist)', 'Quantity\nReturned', 'Returned by', 'Received into\npharm by']],
     body: tableData,
     margin: { left: 10, right: 10, bottom: 16 },
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 4, halign: 'left', valign: 'middle', lineColor: [0,0,0], lineWidth: 0.3, overflow: 'linebreak', minCellHeight: 9 },
     headStyles: { fillColor: [230,243,247], textColor: [0,0,0], fontStyle: 'bold', halign: 'center', valign: 'middle', fontSize: 8, lineColor: [0,0,0], lineWidth: 0.3, minCellHeight: 10 },
-    columnStyles: { 0:{cellWidth:22,halign:'center'}, 1:{cellWidth:22}, 2:{cellWidth:24}, 3:{cellWidth:25}, 4:{cellWidth:25}, 5:{cellWidth:20,halign:'center'}, 6:{cellWidth:30}, 7:{cellWidth:30}, 8:{cellWidth:22,halign:'center'}, 9:{cellWidth:30}, 10:{cellWidth:30} },
+    columnStyles: { 0:{cellWidth:16,halign:'center'}, 1:{cellWidth:18}, 2:{cellWidth:20}, 3:{cellWidth:22}, 4:{cellWidth:22}, 5:{cellWidth:16,halign:'center'}, 6:{cellWidth:24}, 7:{cellWidth:24}, 8:{cellWidth:26}, 9:{cellWidth:18,halign:'center'}, 10:{cellWidth:24}, 11:{cellWidth:24} },
     didDrawPage: () => {
       pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
